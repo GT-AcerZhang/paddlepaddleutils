@@ -1,6 +1,8 @@
 #!/bin/bash
 set -xe
 
+source ./user.sh
+
 hadoop fs -Dhadoop.job.ugi=${mulan_hdfs_ugi} \
     -fs ${mulan_hdfs_server} \
     -get /app/inf/mpi/bml-guest/paddlepaddle/public/transformer/cluster_test_data_en_fr .

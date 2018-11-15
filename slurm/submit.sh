@@ -7,14 +7,13 @@ fi
 
 HGCP_CLIENR_BIN=~/.hgcp/software-install/HGCP_client/bin
 
-#export ${AFSSERVER}... here.
-source ~/.hgcp/user.sh
+source ./user.sh
 
 ${HGCP_CLIENR_BIN}/submit \
-        --hdfs ${AFSSERVER} \
-        --hdfs-user ${AFSUSER} \
-        --hdfs-passwd ${AFSPWD} \
-        --hdfs-path ${AFSPATH} \
+        --hdfs ${afs_server} \
+        --hdfs-user ${afs_user} \
+        --hdfs-passwd ${afs_pwd} \
+        --hdfs-path ${afs_path}/$1 \
         --file-dir ./ \
         --job-name $1 \
         --num-nodes 2 \
