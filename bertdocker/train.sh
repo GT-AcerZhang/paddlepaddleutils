@@ -1,23 +1,10 @@
 set -eu
 
-#bash -x ./env.sh
-source ./shell/env.sh
-source ./shell/utils.sh
+source env.sh
+source model_conf
 
-source ./model_conf
-
-export PATH="$PWD/python/bin/:$PATH"
-export PYTHONPATH="$PWD/python/"
 
 export FLAGS_fraction_of_gpu_memory_to_use=1.0
-
-#pack output
-#nohup sh ./shell/pack_model.sh ./output > log/pack_model.log 2>&1 &
-
-# check
-check_iplist
-
-mkdir -p log
 
 python -u ./train.py --use_cuda \
                     --use_fast_executor \
@@ -34,4 +21,4 @@ python -u ./train.py --use_cuda \
                     --d_model ${D_MODEL} \
                     --num_layers ${NUM_LAYER} \
                     --is_distributed \
-                    --skip_steps 10 > log/job.log 2>&1
+                    --skip_steps 10 > ${PADDLE_TRAINER_ID}.log 2>&1 &
