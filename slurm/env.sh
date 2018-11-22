@@ -14,7 +14,6 @@ unset https_proxy
 #paddle envs
 export PADDLE_PSERVER_PORT=9184
 export PADDLE_TRAINER_IPS=${iplist} 
-#export PADDLE_CURRENT_IP=`/sbin/ip a | grep inet | grep global | awk '{print $2}' | sed 's/\/[0-9][0-9].*$//g'`
 export PADDLE_CURRENT_IP=`hostname -i`
 
 iparray=(${iplist//,/ })

@@ -51,8 +51,8 @@ cmake ../../ -DTHIRD_PARTY_PATH=/paddle/build/third_party/centos6u3_release_gpu/
         -DWITH_ANAKIN=${WITH_ANAKIN:-OFF} \
         -DPY_VERSION=${PY_VERSION:-2.7}
 
-export http_proxy=http://172.19.56.198:8123
-export https_proxy=http://172.19.56.198:8123
+#export http_proxy=http://172.19.56.198:8123
+#export https_proxy=http://172.19.56.198:8123
 export no_proxy="localhost,127.0.0.1,localaddress,.localdomain.com,paddle-inference-dist.cdn.bcebos.com"
 
 make -j 25

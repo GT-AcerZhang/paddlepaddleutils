@@ -470,8 +470,8 @@ def train_loop(exe,
     #exec_strategy.use_experimental_executor = True
     build_strategy = fluid.BuildStrategy()
     #build_strategy.debug_graphviz_path = "./ssa_graph.dot"
-    build_strategy.enable_sequential_execution = True
-    exec_strategy.num_threads = 1
+    #build_strategy.enable_sequential_execution = True
+    #exec_strategy.num_threads = 1
     # Since the token number differs among devices, customize gradient scale to
     # use token average cost among multi-devices. and the gradient scale is
     # `1 / token_number` for average cost.
@@ -672,6 +672,7 @@ def train(args):
     else:
         if args.update_method == "nccl2":
             trainer_id = int(os.getenv("PADDLE_TRAINER_ID", "0"))
+            """
             port = os.getenv("PADDLE_PORT")
             worker_ips = os.getenv("PADDLE_TRAINERS")
             worker_endpoints = []
@@ -679,9 +680,16 @@ def train(args):
                 worker_endpoints.append(':'.join([ip, port]))
             trainers_num = len(worker_endpoints)
             current_endpoint = os.getenv("POD_IP") + ":" + port
+            """
+
             if trainer_id == 0:
                 logging.info("train_id == 0, sleep 60s")
                 time.sleep(60)
+
+            trainers_num=2
+            worker_endpoints=["127.0.0.1:7164", "127.0.0.1:7165"]
+            current_endpoint=worker_endpoints[trainer_id]
+
             logging.info("trainers_num:{}".format(trainers_num))
             logging.info("worker_endpoints:{}".format(worker_endpoints))
             logging.info("current_endpoint:{}".format(current_endpoint))

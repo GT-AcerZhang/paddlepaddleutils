@@ -48,6 +48,6 @@ cmake ../../  -DTHIRD_PARTY_PATH=/paddle/build/third_party/${build_type}_${place
          -DWITH_CONTRIB=${WITH_CONTRIB} \
          -DWITH_GRPC=${WITH_GRPC} \
          -DWITH_BRPC_RDMA=${WITH_BRPC_RDMA} \
-         -DWITH_FLUID_ONLY=OFF \
+         -DWITH_FLUID_ONLY=ON \
          -DWITH_INFERENCE=ON \
          -DCMAKE_INSTALL_PREFIX=/root/paddlebuild/${build_type}_${place}/install

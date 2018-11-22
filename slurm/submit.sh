@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -x
+
 if [[ $# != 1 ]]; then
     echo "Please input jobname"
     exit 1

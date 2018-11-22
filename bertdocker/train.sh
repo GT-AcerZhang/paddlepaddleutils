@@ -1,8 +1,8 @@
+#!/bin/bash
 set -eu
 
 source env.sh
 source model_conf
-
 
 export FLAGS_fraction_of_gpu_memory_to_use=1.0
 

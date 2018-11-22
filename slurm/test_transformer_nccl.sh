@@ -3,11 +3,13 @@ set -xe
 
 source ./user.sh
 
-hadoop fs -Dhadoop.job.ugi=${mulan_hdfs_ugi} \
-    -fs ${mulan_hdfs_server} \
-    -get /app/inf/mpi/bml-guest/paddlepaddle/public/transformer/cluster_test_data_en_fr .
+if [[ ! -d "cluster_test_data_en_fr" ]]; then
+    hadoop fs -Dhadoop.job.ugi=${mulan_hdfs_ugi} \
+        -fs ${mulan_hdfs_server} \
+        -get /app/inf/mpi/bml-guest/paddlepaddle/public/transformer/cluster_test_data_en_fr .
+fi
 
-source ./env.sh
+#source ./env.sh
 
 export PADDLE_IS_LOCAL=0
 export FLAGS_fraction_of_gpu_memory_to_use=1.0
@@ -43,4 +45,4 @@ python -u train.py \
   prepostprocess_dropout 0.3 \
   attention_dropout 0.1 \
   relu_dropout 0.1 \
-  weight_sharing True | tee > ../log/${PADDLE_TRAINER_ID}.log 
+  weight_sharing True  > ../${PADDLE_TRAINER_ID}.log  2>&1 &

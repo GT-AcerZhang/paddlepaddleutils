@@ -17,19 +17,10 @@ ENV http_proxy=http://172.19.57.45:3128
 ENV https_proxy=http://172.19.57.45:3128
 
 RUN pip install -U pip
-#RUn pip install -U --no-use-wheel pip
-#RUN pip install -U kubernetes
 
-#RUN sh -c 'echo "import paddle.v2 as paddle\npaddle.dataset.cifar.train10()\npaddle.dataset.flowers.fetch()" | python'
-#RUN sh -c 'echo "import paddle.v2 as paddle\npaddle.dataset.mnist.train()\npaddle.dataset.mnist.test()\npaddle.dataset.imdb.fetch()" | python'
-#RUN sh -c 'echo "import paddle.v2 as paddle\npaddle.dataset.imikolov.fetch()" | python'
 #RUN pip uninstall -y paddlepaddle ; exit 0
 #RUN mkdir /workspace
 #ADD ./data/cluster_test_data_en_fr /workspace/cluster_test_data_en_fr
-
-#ADD https://raw.githubusercontent.com/PaddlePaddle/cloud/develop/docker/paddle_k8s /usr/bin
-#ADD https://raw.githubusercontent.com/PaddlePaddle/cloud/develop/docker/k8s_tools.py /root
-#RUN chmod +x /usr/bin/paddle_k8s
 
 ADD whl/*.whl /
 RUN pip install /*.whl && rm -f /*.whl 
