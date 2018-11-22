@@ -18,7 +18,9 @@ ENV https_proxy=http://172.19.57.45:3128
 
 RUN pip install -U pip
 
-#RUN pip uninstall -y paddlepaddle ; exit 0
+ADD requirements.txt /paddle/
+RUN pip install  -r /paddle/requirements.txt
+
 RUN mkdir /workspace
 ADD ./data/ /workspace/data
 

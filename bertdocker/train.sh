@@ -4,10 +4,9 @@ set -eu
 source env.sh
 source gongwb.conf
 
-export FLAGS_fraction_of_gpu_memory_to_use=1.0
+export FLAGS_fraction_of_gpu_memory_to_use=0.15
 
 python -u ./train.py --use_cuda \
-                    --use_fast_executor \
                     --batch_size ${BATCH_SIZE} \
                     --data_dir ./data \
                     --checkpoints ./output \
@@ -23,3 +22,4 @@ python -u ./train.py --use_cuda \
                     --skip_steps 10 > ${PADDLE_TRAINER_ID}.log 2>&1 &
 
 # --validation_set_dir ${testdata_dir} \
+# --use_fast_executor \
