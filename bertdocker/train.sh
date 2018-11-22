@@ -10,7 +10,6 @@ python -u ./train.py --use_cuda \
                     --use_fast_executor \
                     --batch_size ${BATCH_SIZE} \
                     --data_dir ./data \
-                    --validation_set_dir ${testdata_dir} \
                     --checkpoints ./output \
                     --save_steps ${SAVE_STEPS} \
                     --init_model ${init_model:-""} \
@@ -22,3 +21,5 @@ python -u ./train.py --use_cuda \
                     --num_layers ${NUM_LAYER} \
                     --is_distributed \
                     --skip_steps 10 > ${PADDLE_TRAINER_ID}.log 2>&1 &
+
+# --validation_set_dir ${testdata_dir} \
