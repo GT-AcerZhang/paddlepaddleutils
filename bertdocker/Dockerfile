@@ -19,14 +19,14 @@ ENV https_proxy=http://172.19.57.45:3128
 RUN pip install -U pip
 
 #RUN pip uninstall -y paddlepaddle ; exit 0
-#RUN mkdir /workspace
-#ADD ./data/cluster_test_data_en_fr /workspace/cluster_test_data_en_fr
+RUN mkdir /workspace
+ADD ./data/ /workspace/data
 
 ADD whl/*.whl /
 RUN pip install /*.whl && rm -f /*.whl 
 ADD libmkldnn.so.0 /usr/local/lib
 
-ENV LD_LIBRARY_PATH=/usr/local/lib
+ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/lib/:/usr/local/nvidia/lib64:/usr/local/rdma/lib64:/root/gongwb/transformer/lib:/usr/local/lib/python2.7/dist-packages/paddle/libs:$LD_LIBRARY_PATH
 ADD models/ /workspace/
-ADD shell/ /workspace/shell
+ADD train.sh env.sh /workspace/
 
