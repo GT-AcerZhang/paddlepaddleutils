@@ -14,6 +14,8 @@ fi
 export PADDLE_IS_LOCAL=0
 export FLAGS_fraction_of_gpu_memory_to_use=1.0
 
+echo $LD_LIBRARY_PATH
+
 echo "run on trainer:" ${PADDLE_TRAINER_ID}
 
 cd models/
