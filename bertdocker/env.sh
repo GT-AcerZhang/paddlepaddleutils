@@ -29,11 +29,11 @@ export PADDLE_IS_LOCAL=0
 echo "****************************************************"
 
 #paddle debug envs
-#export GLOG_v=100
-#export GLOG_logtostderr=1
+export GLOG_v=1
+export GLOG_logtostderr=1
 
 #nccl debug envs
-export NCCL_DEBUG=VERSION
+export NCCL_DEBUG=INFO
 #export NCCL_IB_DISABLE=1
 #export NCCL_IB_GDR_LEVEL=4
 export NCCL_IB_GID_INDEX=3

@@ -170,8 +170,8 @@ def train(args):
         exec_strategy=exec_strategy,
         main_program=train_program,
         num_trainers=nccl2_num_trainers,
-        trainer_id=nccl2_trainer_id,
-        trainers_end_points=worker_endpoints)
+        trainer_id=nccl2_trainer_id)
+        #trainers_end_points=worker_endpoints)
 
     if args.validation_set_dir and args.validation_set_dir != "":
         predict = predict_wrapper(
