@@ -12,7 +12,7 @@ fi
 #source ./env.sh
 
 export PADDLE_IS_LOCAL=0
-export FLAGS_fraction_of_gpu_memory_to_use=1.0
+export FLAGS_fraction_of_gpu_memory_to_use=0.15
 
 echo $LD_LIBRARY_PATH
 

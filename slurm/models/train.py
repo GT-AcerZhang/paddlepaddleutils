@@ -453,7 +453,8 @@ def train_loop(exe,
                predict,
                pyreader,
                nccl2_num_trainers=1,
-               nccl2_trainer_id=0):
+               nccl2_trainer_id=0,
+               worker_endpoints=None):
     # Initialize the parameters.
     if TrainTaskConfig.ckpt_path:
         fluid.io.load_persistables(exe, TrainTaskConfig.ckpt_path)
@@ -470,8 +471,8 @@ def train_loop(exe,
     #exec_strategy.use_experimental_executor = True
     build_strategy = fluid.BuildStrategy()
     #build_strategy.debug_graphviz_path = "./ssa_graph.dot"
-    build_strategy.enable_sequential_execution = True
-    exec_strategy.num_threads = 1
+    #build_strategy.enable_sequential_execution = True
+    #exec_strategy.num_threads = 1
     # Since the token number differs among devices, customize gradient scale to
     # use token average cost among multi-devices. and the gradient scale is
     # `1 / token_number` for average cost.
@@ -485,7 +486,8 @@ def train_loop(exe,
         build_strategy=build_strategy,
         exec_strategy=exec_strategy,
         num_trainers=nccl2_num_trainers,
-        trainer_id=nccl2_trainer_id)
+        trainer_id=nccl2_trainer_id, 
+        collective_trainers_endpoints=worker_endpoints)
 
     logging.info("before exit")
     #sys.exit(0)
@@ -697,7 +699,7 @@ def train(args):
                                  current_endpoint)
             train_loop(exe, train_prog, startup_prog, dev_count, sum_cost,
                        avg_cost, token_num, predict, pyreader, trainers_num,
-                       trainer_id)
+                       trainer_id, worker_endpoints)
             return
 
         port = os.getenv("PADDLE_PORT", "6174")
