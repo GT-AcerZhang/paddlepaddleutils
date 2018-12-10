@@ -27,7 +27,7 @@ class BertModel(object):
             input=src_ids,
             size=[self.voc_size + 1, self.emb_size],
             padding_idx=self.voc_size,
-            is_sparse=False)
+            is_sparse=True)
 
         position_emb_out = fluid.layers.embedding(
             input=position_ids,

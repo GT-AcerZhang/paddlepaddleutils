@@ -5,7 +5,7 @@ export PADDLE_WORK_ENDPOINTS=127.0.0.1:9184,127.0.0.1:9185
 
 #for ubuntu
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib64/:/usr/local/lib/:/workspace/brpc:/usr/lib/x86_64-linux-gnu/
-export PYTHONPATH=$PYTHONPATH:/paddle/build/build_bertgather_RelWithDebInfo_gpu/python
+export PYTHONPATH=$PYTHONPATH:/paddle/build/build_bertgather2_RelWithDebInfo_gpu/python
 #echo $LD_LIBRARY_PATH
 export FLAGS_nccl_dir=/usr/lib/x86_64-linux-gnu/
 
@@ -19,7 +19,7 @@ export FLAGS_nccl_dir=/usr/lib/x86_64-linux-gnu/
 unset http_proxy https_proxy
 
 #paddle debug envs
-export GLOG_v=10
+export GLOG_v=1
 export GLOG_logtostderr=1
 
 #nccl debug envs

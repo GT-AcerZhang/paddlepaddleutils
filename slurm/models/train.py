@@ -486,8 +486,7 @@ def train_loop(exe,
         build_strategy=build_strategy,
         exec_strategy=exec_strategy,
         num_trainers=nccl2_num_trainers,
-        trainer_id=nccl2_trainer_id, 
-        collective_trainers_endpoints=worker_endpoints)
+        trainer_id=nccl2_trainer_id)
 
     logging.info("before exit")
     #sys.exit(0)
@@ -687,16 +686,25 @@ def train(args):
                 logging.info("train_id == 0, sleep 60s")
                 time.sleep(60)
 
-            worker_endpoints = os.getenv("PADDLE_WORK_ENDPOINTS")
-            worker_endpoints = worker_endpoints.split(',')
+            worker_endpoints_env = os.getenv("PADDLE_WORK_ENDPOINTS")
+            worker_endpoints = worker_endpoints_env.split(',')
             trainers_num=len(worker_endpoints)
             current_endpoint=worker_endpoints[trainer_id]
 
             logging.info("trainers_num:{}".format(trainers_num))
             logging.info("worker_endpoints:{}".format(worker_endpoints))
             logging.info("current_endpoint:{}".format(current_endpoint))
-            append_nccl2_prepare(startup_prog, trainer_id, worker_endpoints,
-                                 current_endpoint)
+            #append_nccl2_prepare(startup_prog, trainer_id, worker_endpoints,
+            #                     current_endpoint)
+            config = fluid.DistributeTranspilerConfig()
+            config.mode = "nccl2"
+            t = fluid.DistributeTranspiler(config=config)
+            t.transpile(
+                trainer_id,
+                trainers=worker_endpoints_env,
+                current_endpoint=current_endpoint,
+                program=train_prog,
+                startup_program=startup_prog)
             train_loop(exe, train_prog, startup_prog, dev_count, sum_cost,
                        avg_cost, token_num, predict, pyreader, trainers_num,
                        trainer_id, worker_endpoints)
