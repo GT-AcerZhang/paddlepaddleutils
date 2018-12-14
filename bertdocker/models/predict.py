@@ -38,9 +38,11 @@ def predict_wrapper(args,
         voc_size=args.vocab_size,
         pad_word_id=args.vocab_size,
         pad_sent_id=3,
+        shuffle_files=False,
+        epoch=1,
         max_seq_len=args.max_seq_len,
-        num_head=args.num_head,
-        is_test=True)
+        is_test=True,
+        num_head=args.num_head)
 
     if args.for_test:
         init_model(args.init_model, test_prog)
@@ -70,7 +72,7 @@ def predict_wrapper(args,
                 lm_cost += each_mask_lm_cost
                 cost += each_total_cost
                 steps += 1
-                if steps % args.skip_steps == 0:
+                if args.for_test and steps % args.skip_steps == 0:
                     print("[test_set] steps: %d" % steps)
 
             except fluid.core.EOFException:

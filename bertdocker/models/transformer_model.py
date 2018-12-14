@@ -305,7 +305,7 @@ def encoder(enc_input,
             attention_dropout,
             relu_dropout,
             preprocess_cmd,
-            postprocess_cmd, )
+            postprocess_cmd)
         enc_input = enc_output
     enc_output = pre_process_layer(enc_output, preprocess_cmd,
                                    prepostprocess_dropout)

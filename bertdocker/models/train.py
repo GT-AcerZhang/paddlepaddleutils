@@ -19,7 +19,7 @@ def create_model(pyreader_name):
         capacity=70,
         shapes=[[-1, args.max_seq_len, 1], [-1, args.max_seq_len, 1],
                 [-1, args.max_seq_len, 1],
-                [-1, args.num_head, args.max_seq_len, args.max_seq_len],
+                [-1, args.max_seq_len, args.max_seq_len],
                 [-1, 1], [-1, 1], [-1, 1], [-1, 1]],
         dtypes=[
             'int64', 'int64', 'int64', 'float', 'int64', 'int64', 'int64',
@@ -33,17 +33,24 @@ def create_model(pyreader_name):
      next_sent_index) = fluid.layers.read_file(pyreader)
 
     bert = BertModel(
+        src_ids=src_ids,
+        position_ids=pos_ids,
+        sentence_ids=sent_ids,
+        self_attn_mask=self_attn_mask,
         emb_size=args.d_model,
         n_layer=args.num_layers,
         n_head=args.num_head,
         voc_size=args.vocab_size,
         max_position_seq_len=args.max_seq_len,
-        pad_sent_id=args.pad_sent_id)
-
-    enc_out = bert.build_model(src_ids, pos_ids, sent_ids, self_attn_mask)
+        pad_sent_id=args.pad_sent_id,
+        weight_sharing=args.weight_sharing)
 
     next_sent_acc, mask_lm_loss, total_loss = bert.get_pretraining_output(
-        enc_out, mask_label, mask_pos, labels, next_sent_index)
+        mask_label, mask_pos, labels, next_sent_index)
+    
+    next_sent_acc.persistable = True 
+    mask_lm_loss.persistable = True
+    total_loss.persistable = True 
 
     return pyreader, next_sent_acc, mask_lm_loss, total_loss
 
@@ -86,8 +93,43 @@ def train(args):
             train_pyreader, next_sent_acc, mask_lm_loss, total_loss = create_model(
                 pyreader_name='train_reader')
 
-            optimizer = fluid.optimizer.Adam(learning_rate=args.learning_rate)
+            lr_decay = fluid.layers.learning_rate_scheduler.noam_decay(
+                    args.d_model, args.warmup_steps)
+            
+            print("before adam")
+            with fluid.default_main_program()._lr_schedule_guard():
+                learning_rate = args.learning_rate * lr_decay
+
+            optimizer = fluid.optimizer.Adam(learning_rate=learning_rate)
+            
+            fluid.clip.set_gradient_clip(
+                    clip=fluid.clip.GradientClipByGlobalNorm(clip_norm=1.0))
+           
+            #before minimize
+            param_list = None
+            if args.weight_decay > 0:
+                param_list = [param * 1.0 for param in train_program.global_block().all_parameters()]
+
             optimizer.minimize(total_loss)
+              
+            if args.weight_decay > 0:
+                def exclude_from_weight_decay(name):
+                    if "layer_norm" in name or "word_embedding" in name:
+                        return True
+                    
+                    bias_suffix = ["_bias", "_b", ".b_0"]
+                    for suffix in bias_suffix:
+                        if name.endswith(suffix):
+                            return True
+                    return False
+                
+                for index, param in enumerate(train_program.global_block().all_parameters()):
+                    if not exclude_from_weight_decay(param.name):
+                        updated_param = param - param_list[index] * args.weight_decay * (learning_rate if args.warmup_steps > 0 else args.learning_rate)
+                        fluid.layers.assign(output=param, input=updated_param)
+                    else:
+                        print("exclude %s from weight decay." % param.name)
+
             fluid.memory_optimize(train_program)
 
     test_prog = fluid.Program()
@@ -121,6 +163,7 @@ def train(args):
         worker_endpoints = []
         for ip in worker_ips.split(","):
             worker_endpoints.append(':'.join([ip, port]))
+        worker_endpoints_env=",".join(worker_endpoints)
         trainers_num = len(worker_endpoints)
         current_endpoint = os.getenv("POD_IP") + ":" + port
         if trainer_id == 0:
@@ -131,8 +174,17 @@ def train(args):
         print("current_endpoint:{}".format(current_endpoint))
 
         print("prepare nccl2")
-        append_nccl2_prepare(train_startup, trainer_id, worker_endpoints,
-                             current_endpoint)
+        #append_nccl2_prepare(train_startup, trainer_id, worker_endpoints,
+        #                     current_endpoint)
+        config = fluid.DistributeTranspilerConfig()
+        config.mode = "nccl2"
+        t = fluid.DistributeTranspiler(config=config)
+        t.transpile(
+                trainer_id,
+                trainers=worker_endpoints_env,
+                current_endpoint=current_endpoint,
+                program=train_program,
+                startup_program=train_startup)
         nccl2_num_trainers = trainers_num
         nccl2_trainer_id = trainer_id
 
@@ -146,22 +198,22 @@ def train(args):
         init_model(args.init_model, train_program)
 
     data_reader = DataReader(
-        args.data_dir,
-        place,
-        args.batch_size,
+        data_dir=args.data_dir,
+        batch_size=args.batch_size,
         voc_size=args.vocab_size,
         pad_word_id=args.vocab_size,
         epoch=args.epoch,
         pad_sent_id=args.pad_sent_id,
         max_seq_len=args.max_seq_len,
-        num_head=args.num_head)
+        num_head=args.num_head,
+        generate_neg_sample=args.generate_neg_sample)
 
     exec_strategy = fluid.ExecutionStrategy()
     if args.use_fast_executor:
         exec_strategy.use_experimental_executor = True
 
     build_strategy = fluid.BuildStrategy()
-    build_strategy.remove_unnecessary_lock = True
+    build_strategy.remove_unnecessary_lock = False
 
     train_exe = fluid.ParallelExecutor(
         use_cuda=args.use_cuda,
@@ -170,8 +222,7 @@ def train(args):
         exec_strategy=exec_strategy,
         main_program=train_program,
         num_trainers=nccl2_num_trainers,
-        trainer_id=nccl2_trainer_id,
-        trainers_endpoints=worker_endpoints)
+        trainer_id=nccl2_trainer_id)
 
     if args.validation_set_dir and args.validation_set_dir != "":
         predict = predict_wrapper(
@@ -199,20 +250,25 @@ def train(args):
             acc.extend(each_next_acc)
             lm_cost.extend(each_mask_lm_cost)
             cost.extend(each_total_cost)
-            steps += 1
-
-            if steps % args.skip_steps == 0:
-                #print("feed_queue size", train_pyreader.queue.size())
+            steps += nccl2_num_trainers
+            
+            if nccl2_trainer_id != 0:
+                continue
+           
+            skip_steps = args.skip_steps * nccl2_num_trainers
+            if steps % skip_steps == 0:
+                print("feed_queue size", train_pyreader.queue.size())
                 time_end = time.time()
                 used_time = time_end - time_begin
                 epoch, current_file_index, total_file, current_file = data_reader.get_progress(
                 )
                 print(
-                    "epoch: %d, progress: %d/%d, step: %d, loss: %f, ppl: %f, next_sent_acc: %f, speed: %f steps/s, file: %s"
+                    "epoch: %d, progress: %d/%d, step: %d, loss: %f, "
+                    "ppl: %f, next_sent_acc: %f, speed: %f steps/s, file: %s"
                     % (epoch, current_file_index, total_file, steps,
                        np.mean(np.array(cost)),
                        np.mean(np.exp(np.array(lm_cost))),
-                       np.mean(np.array(acc)), args.skip_steps / used_time,
+                       np.mean(np.array(acc)), skip_steps / used_time,
                        current_file))
                 cost = []
                 lm_cost = []

@@ -6,6 +6,7 @@ from paddle.fluid.transpiler.details import program_to_code
 
 from utils import to_lodtensor
 
+
 def mask(batch_tokens, total_token_num, vocab_size, CLS=1, SEP=2, MASK=0):
     """
     Add mask for batch_tokens, return out, mask_label, mask_pos;
@@ -14,7 +15,7 @@ def mask(batch_tokens, total_token_num, vocab_size, CLS=1, SEP=2, MASK=0):
     max_len = max([len(sent) for sent in batch_tokens])
     mask_label = []
     mask_pos = []
-    prob_mask  = np.random.rand(total_token_num)
+    prob_mask = np.random.rand(total_token_num)
     # Note: the first token is [CLS], so [low=1]
     replace_ids = np.random.randint(1, high=vocab_size, size=total_token_num)
     pre_sent_len = 0
@@ -24,7 +25,7 @@ def mask(batch_tokens, total_token_num, vocab_size, CLS=1, SEP=2, MASK=0):
         prob_index += pre_sent_len
         for token_index, token in enumerate(sent):
             prob = prob_mask[prob_index + token_index]
-            if  prob > 0.15:
+            if prob > 0.15:
                 continue
             elif 0.03 < prob <= 0.15:
                 # mask
@@ -49,49 +50,81 @@ def mask(batch_tokens, total_token_num, vocab_size, CLS=1, SEP=2, MASK=0):
 
         # ensure at least mask one word in a sentence
         while not mask_flag:
-            token_index = int(np.random.randint(1, high=len(sent)-1, size=1))
+            token_index = int(np.random.randint(1, high=len(sent) - 1, size=1))
             if sent[token_index] != SEP and sent[token_index] != CLS:
                 mask_label.append(sent[token_index])
                 sent[token_index] = MASK
                 mask_flag = True
                 mask_pos.append(sent_index * max_len + token_index)
-    mask_label = np.array(mask_label).astype("int64").reshape([-1,1])
-    mask_pos = np.array(mask_pos).astype("int64").reshape([-1,1])
+    mask_label = np.array(mask_label).astype("int64").reshape([-1, 1])
+    mask_pos = np.array(mask_pos).astype("int64").reshape([-1, 1])
     return batch_tokens, mask_label, mask_pos
 
+
 def prepare_batch_data(insts,
-                   total_token_num,
-                   n_head=1,
-                   voc_size=0,
-                   pad_word_id=0,
-                   pad_pos_id=512,
-                   pad_sent_id=3,
-                   mask_id=0,
-                   return_attn_bias=True,
-                   return_max_len=True,
-                   place=fluid.CPUPlace(),
-                   return_num_token=False):
+                       total_token_num,
+                       n_head=1,
+                       voc_size=0,
+                       pad_word_id=0,
+                       pad_pos_id=512,
+                       pad_sent_id=3,
+                       mask_id=0,
+                       return_attn_bias=True,
+                       return_max_len=True,
+                       place=fluid.CPUPlace(),
+                       return_num_token=False):
     """
     1. generate LodTensor of data
     2. generate LodTensor of position
     3. generate self attention mask, [shape: batch_size * n_head * max_len * max_len]
     """
-    
-    batch_src_ids  = [inst[0] for inst in insts]
+
+    batch_src_ids = [inst[0] for inst in insts]
     batch_sent_ids = [inst[1] for inst in insts]
-    batch_pos_ids  = [inst[2] for inst in insts]
-    labels  = [inst[3] for inst in insts]
-    labels = np.array(labels).astype("int64").reshape([-1,1])
+    batch_pos_ids = [inst[2] for inst in insts]
+    labels = [inst[3] for inst in insts]
+    labels = np.array(labels).astype("int64").reshape([-1, 1])
 
     # First step: do mask without padding
-    out, mask_label, mask_pos = mask(batch_src_ids, total_token_num, vocab_size=voc_size, CLS=1, SEP=2, MASK=mask_id)
-    
+    if mask_id >= 0:
+        out, mask_label, mask_pos = mask(
+            batch_src_ids,
+            total_token_num,
+            vocab_size=voc_size,
+            CLS=1,
+            SEP=2,
+            MASK=mask_id)
+    else:
+        out = batch_src_ids
     # Second step: padding
-    src_id, next_sent_index, self_attn_bias = pad_batch_data(out, n_head=n_head, pad_idx=pad_word_id, return_next_sent_pos=True, return_attn_bias=True)
-    pos_id  = pad_batch_data(batch_pos_ids, n_head=n_head, pad_idx=pad_pos_id, return_pos=False, return_attn_bias=False)
-    sent_id  = pad_batch_data(batch_sent_ids, n_head=n_head, pad_idx=pad_sent_id, return_pos=False, return_attn_bias=False)
+    src_id, next_sent_index, self_attn_bias = pad_batch_data(
+        out,
+        n_head=n_head,
+        pad_idx=pad_word_id,
+        return_next_sent_pos=True,
+        return_attn_bias=True)
+    pos_id = pad_batch_data(
+        batch_pos_ids,
+        n_head=n_head,
+        pad_idx=pad_pos_id,
+        return_pos=False,
+        return_attn_bias=False)
+    sent_id = pad_batch_data(
+        batch_sent_ids,
+        n_head=n_head,
+        pad_idx=pad_sent_id,
+        return_pos=False,
+        return_attn_bias=False)
 
-    return_list = [src_id, pos_id, sent_id, self_attn_bias, mask_label, mask_pos, labels, next_sent_index]
+    if mask_id >= 0:
+        return_list = [
+            src_id, pos_id, sent_id, self_attn_bias, mask_label, mask_pos,
+            labels, next_sent_index
+        ]
+    else:
+        return_list = [
+            src_id, pos_id, sent_id, self_attn_bias, labels, next_sent_index
+        ]
 
     return return_list if len(return_list) > 1 else return_list[0]
 
@@ -121,15 +154,17 @@ def pad_batch_data(insts,
     if return_next_sent_pos:
         batch_size = inst_data.shape[0]
         max_seq_len = inst_data.shape[1]
-        next_sent_index = np.array(range(0, batch_size * max_seq_len, max_seq_len)).astype("int64").reshape(-1, 1)
+        next_sent_index = np.array(
+            range(0, batch_size * max_seq_len, max_seq_len)).astype(
+                "int64").reshape(-1, 1)
         return_list += [next_sent_index]
 
     # position data
     if return_pos:
         inst_pos = np.array([
             list(range(0, len(inst))) + [pad_idx] * (max_len - len(inst))
-         for inst in insts
-      ])
+            for inst in insts
+        ])
 
         return_list += [inst_pos.astype("int64").reshape([-1, max_len, 1])]
 
@@ -139,8 +174,8 @@ def pad_batch_data(insts,
                                        (max_len - len(inst))
                                        for inst in insts])
         slf_attn_bias_data = np.tile(
-            slf_attn_bias_data.reshape([-1, 1, 1, max_len]),
-            [1, n_head, max_len, 1])
+            slf_attn_bias_data.reshape([-1, 1, max_len]),
+            [1,  max_len, 1])
         return_list += [slf_attn_bias_data.astype("float32")]
 
     if return_max_len:

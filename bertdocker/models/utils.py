@@ -32,6 +32,23 @@ def init_model(init_model_path, main_program):
     print("Load model from {}".format(init_model_path))
 
 
+def init_pretraining_model(exe, pretraining_model_path, main_program):
+    assert os.path.exists(pretraining_model_path
+                          ), "[%s] cann't be found." % pretraining_model_path
+
+    def existed_params(var):
+        if not isinstance(var, fluid.framework.Parameter):
+            return False
+        return os.path.exists(os.path.join(pretraining_model_path, var.name))
+
+    fluid.io.load_vars(
+        exe,
+        pretraining_model_path,
+        main_program=main_program,
+        predicate=existed_params)
+    print("Load pretraining model from {}".format(pretraining_model_path))
+
+
 def append_nccl2_prepare(startup_prog, trainer_id, worker_endpoints,
                          current_endpoint):
     assert (trainer_id >= 0 and len(worker_endpoints) > 1 and
@@ -92,8 +109,18 @@ def parse_args():
     parser.add_argument(
         '--learning_rate',
         type=float,
-        default=1e-4,
-        help='Learning rate used to train. (default: %(default)f)')
+        default=1.0,
+        help='Learning rate used to train with warmup. (default: %(default)f)')
+    parser.add_argument(
+        '--warmup_steps',
+        type=int,
+        default=4000,
+        help='warmup steps. (default: %(default)f)')
+    parser.add_argument(
+        '--weight_decay',
+        type=float,
+        default=0,
+        help='Weight decay rate for L2 regularizer. (default: %(default)f)')
     parser.add_argument(
         '--checkpoints',
         type=str,
@@ -104,6 +131,11 @@ def parse_args():
         type=str,
         default=None,
         help='init model to load. (default: %(default)s)')
+    parser.add_argument(
+        '--vocab_path',
+        type=str,
+        default=None,
+        help='Vocabulary path. (default: %(default)s)')
     parser.add_argument(
         '--data_dir',
         type=str,
@@ -138,15 +170,29 @@ def parse_args():
         '--validation_steps',
         type=int,
         default=1000,
-        help='The steps interval to evaluate model performance on validation set. (default: %(default)d)')
+        help='The steps interval to evaluate model performance on validation '
+        'set. (default: %(default)d)')
     parser.add_argument(
         '--is_distributed',
         action='store_true',
         help='If set, then start distributed training')
     parser.add_argument(
-        '--use_cuda', action='store_true', help='If set, use GPU for training.')
+        '--use_cuda',
+        action='store_true',
+        help='If set, use GPU for training.')
     parser.add_argument(
-        '--for_test', action='store_true', help='If set, evaluate existed model performance on test set.')
+        '--for_test',
+        action='store_true',
+        help='If set, evaluate existed model performance on test set.')
+    parser.add_argument(
+        '--generate_neg_sample',
+        action='store_true',
+        help='If set, randomly generate negtive samples by positive samples.')
+    parser.add_argument(
+        '--weight_sharing',
+        action='store_true',
+        help='If set, share weights between word embedding and masked lm '
+        'output fully-connected layer.')
     parser.add_argument(
         '--use_fast_executor',
         action='store_true',
