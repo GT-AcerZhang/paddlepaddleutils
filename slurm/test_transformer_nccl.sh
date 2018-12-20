@@ -9,7 +9,7 @@ if [[ ! -d "cluster_test_data_en_fr" ]]; then
         -get /app/inf/mpi/bml-guest/paddlepaddle/public/transformer/cluster_test_data_en_fr .
 fi
 
-#source ./env.sh
+source ./env.sh
 
 export PADDLE_IS_LOCAL=0
 export FLAGS_fraction_of_gpu_memory_to_use=0.15
