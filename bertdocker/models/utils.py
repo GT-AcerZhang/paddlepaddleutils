@@ -197,6 +197,11 @@ def parse_args():
         '--use_fast_executor',
         action='store_true',
         help='If set, use fast parallel executor (in experiment).')
+    parser.add_argument(
+        '--profile',
+        action='store_true',
+        help='If set profile it.')
+
 
     args = parser.parse_args()
     return args

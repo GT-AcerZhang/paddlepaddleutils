@@ -12,6 +12,8 @@ from utils import parse_args
 from utils import print_arguments
 from utils import init_model
 from utils import append_nccl2_prepare
+import paddle.fluid.profiler as profiler
+from paddle.fluid.transpiler.details import program_to_code
 
 
 def create_model(pyreader_name):
@@ -197,6 +199,9 @@ def train(args):
         # init_model(exe, args.init_model, train_startup)
         init_model(args.init_model, train_program)
 
+    print("train program:")
+    program_to_code(train_program)
+
     data_reader = DataReader(
         data_dir=args.data_dir,
         batch_size=args.batch_size,
@@ -211,9 +216,11 @@ def train(args):
     exec_strategy = fluid.ExecutionStrategy()
     if args.use_fast_executor:
         exec_strategy.use_experimental_executor = True
+    exec_strategy.num_threads = 8
 
     build_strategy = fluid.BuildStrategy()
     build_strategy.remove_unnecessary_lock = False
+    #build_strategy.enable_sequential_execution = True
 
     train_exe = fluid.ParallelExecutor(
         use_cuda=args.use_cuda,
@@ -241,8 +248,11 @@ def train(args):
     lm_cost = []
     acc = []
     time_begin = time.time()
+    batch_id = 0
+    start_time=time.time()
     while True:
         try:
+            print("begin batch_id:", batch_id)
             each_next_acc, each_mask_lm_cost, each_total_cost = train_exe.run(
                 fetch_list=[
                     next_sent_acc.name, mask_lm_loss.name, total_loss.name
@@ -251,7 +261,20 @@ def train(args):
             lm_cost.extend(each_mask_lm_cost)
             cost.extend(each_total_cost)
             steps += nccl2_num_trainers
-            
+
+            batch_id+=1
+
+            if args.profile and batch_id == 3:
+                print("start profiler")
+                start_time=time.time()
+                profiler.start_profiler("All")
+                profiler.reset_profiler()
+            elif args.profile and batch_id == 8:
+                print("profiling total time: ", time.time() - start_time)
+                profiler.stop_profiler("total", "/tmp/profile_%d" %
+                                       (nccl2_trainer_id))
+                break
+
             if nccl2_trainer_id != 0:
                 continue
            
