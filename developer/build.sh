@@ -6,6 +6,7 @@ place=gpu
 build_type=debug
 rpc=grpc
 testing=y
+os=ubuntu
 
 while true ; do
   case "$1" in
@@ -14,6 +15,7 @@ while true ; do
     -t) testing="$2" ; shift 2 ;;
     -c) build_type="$2" ; shift 2 ;;
     -r) rpc="$2" ; shift 2 ;;
+    -os) os="$2" ; shift 2 ;;
     *) 
        if [[ ${#1} > 0 ]]; then
           echo "not supported arugments ${1}" ; exit 1 ;
@@ -63,12 +65,23 @@ case "$rpc" in
     *) echo "not support ${rpc}" ; exit 1 ;;
 esac
 
-build_dir=build_${branch}_${build_type}_${place}_${testing}_${rpc}
+case "$os" in
+    cent) 
+        export LD_LIBRARY_PATH=/opt/_internal/cpython-2.7.11-ucs4/lib:${LD_LIBRARY_PATH#/opt/_internal/cpython-2.7.11-ucs2/lib:}
+        export PATH=/opt/python/cp27-cp27mu/bin/:${PATH}
+        PYTHON_FLAGS="-DPYTHON_EXECUTABLE:FILEPATH=/opt/python/cp27-cp27mu/bin/python"
+        ;;
+    ubuntu) ;;
+    *) echo "not support ${os}" ; exit 1 ;;
+esac
+
+build_dir=build_${os}_${branch}_${build_type}_${place}_${testing}_${rpc}
 mkdir -p  ${build_dir}
 cd ${build_dir}
+third_party_dir=${os}_${build_type}_${place}
 
 set -x
-cmake ../../  -DTHIRD_PARTY_PATH=/paddle/build/third_party/${build_type}_${place}/ \
+cmake ../../  -DTHIRD_PARTY_PATH=/paddle/build/third_party/${third_party_dir}/ \
          -DWITH_MKLML=ON \
          -DWITH_MKLDNN=ON \
          -DWITH_GPU=${WITH_GPU:-ON} \
@@ -81,7 +94,10 @@ cmake ../../  -DTHIRD_PARTY_PATH=/paddle/build/third_party/${build_type}_${place
          -DWITH_GRPC=${WITH_GRPC:-ON} \
          -DWITH_BRPC_RDMA=${WITH_BRPC_RDMA:-OFF} \
          -DWITH_FLUID_ONLY=ON \
-         -DCMAKE_INSTALL_PREFIX=/root/paddlebuild/${build_type}_${place}/install \
+         -DCMAKE_INSTALL_PREFIX=/root/paddlebuild/${third_party_dir}/install \
          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
-
+if [[ $os == "cent" ]]; then
+    cd build_dir
+    make -j 25
+fi
