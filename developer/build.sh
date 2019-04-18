@@ -13,8 +13,8 @@ while true ; do
     -b) branch="$2" ; shift 2 ;;
     -p) place="$2" ; shift 2 ;;
     -t) testing="$2" ; shift 2 ;;
-    -c) build_type="$2" ; shift 2 ;;
-    -r) rpc="$2" ; shift 2 ;;
+    -build_type) build_type="$2" ; shift 2 ;;
+    -rpc) rpc="$2" ; shift 2 ;;
     -os) os="$2" ; shift 2 ;;
     *) 
        if [[ ${#1} > 0 ]]; then
@@ -94,10 +94,14 @@ cmake ../../  -DTHIRD_PARTY_PATH=/paddle/build/third_party/${third_party_dir}/ \
          -DWITH_GRPC=${WITH_GRPC:-ON} \
          -DWITH_BRPC_RDMA=${WITH_BRPC_RDMA:-OFF} \
          -DWITH_FLUID_ONLY=ON \
+         -DWITH_INFERENCE_API_TEST=OFF \
          -DCMAKE_INSTALL_PREFIX=/root/paddlebuild/${third_party_dir}/install \
+         -DWITH_DOC=ON \
          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+set +x
 
-if [[ $os == "cent" ]]; then
-    cd build_dir
+#if [[ $os == "cent" ]]; then
+    #cd $build_dir
     make -j 25
-fi
+#fi
+
