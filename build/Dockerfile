@@ -38,9 +38,9 @@ ENV GOROOT=/usr/local/go GOPATH=/root/go
 RUN mkdir -p /root/go/bin
 ENV PATH=${PATH}:${GOROOT}/bin:${GOPATH}/bin
 RUN curl -s -q https://glide.sh/get | sh
-RUN go get -u github.com/alecthomas/gometalinter 
-RUN gometalinter --install
-RUN go get github.com/google/pprof
+#RUN go get -u github.com/alecthomas/gometalinter 
+#RUN gometalinter --install
+#RUN go get github.com/google/pprof
 
 RUN pip  install nltk scipy cpplint yep
 
