@@ -97,7 +97,8 @@ cmake ../../  -DTHIRD_PARTY_PATH=/paddle/build/third_party/${third_party_dir}/ \
          -DWITH_INFERENCE_API_TEST=OFF \
          -DCMAKE_INSTALL_PREFIX=/root/paddlebuild/${third_party_dir}/install \
          -DWITH_DOC=ON \
-         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+         -DCUDA_ARCH_NAME=Volta
 set +x
 
 #if [[ $os == "cent" ]]; then
