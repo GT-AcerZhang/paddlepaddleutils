@@ -2,11 +2,24 @@
 
 unset GREP_OPTIONS
 branch=`git branch | grep \* | cut -d ' ' -f2`
+
 place=gpu
-build_type=debug
 rpc=grpc
-testing=y
-os=ubuntu
+
+if grep --quiet "Ubuntu" /etc/issue; then
+  os=ubuntu
+  build_type=debug
+  testing=y
+elif grep --quiet "CentOS" /etc/issue; then
+  os=cent
+  build_type=release
+  testing=n
+else
+  echo "Unrecognized OS, use ubuntu config"
+  os=ubuntu
+  build_type=debug
+  testing=y
+fi
 
 while true ; do
   case "$1" in
