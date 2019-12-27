@@ -23,6 +23,11 @@ RUN pip install -i https://pypi.org/simple  x86cpu PyTurboJPEG py-cpuinfo==5.0.0
 
 ADD requirements.txt /root/requirements.txt
 RUN pip install -i https://pypi.org/simple -r /root/requirements.txt
+RUN pip install --extra-index-url https://developer.download.nvidia.com/compute/redist/nightly/cuda/10.0 nvidia-dali-nightly
 
+ADD  cuda10-cudnn7.6.5.32 /usr/local/cuda10-cudnn7.6.5.32
+ENV LD_LIBRARY_PATH=/usr/local/cuda10-cudnn7.6.5.32/lib64/:$LD_LIBRARY_PATH
 
-RUN rm -f /tmp/*.whl && python -c "import paddle"
+RUN pip uninstall -y paddlepaddle paddlepaddle-gpu
+
+RUN rm -f /tmp/*.whl

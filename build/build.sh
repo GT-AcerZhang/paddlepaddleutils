@@ -7,6 +7,7 @@ build_type=debug
 rpc=grpc
 testing=y
 os=ubuntu
+py_v=2.7
 
 while true ; do
   case "$1" in
@@ -16,6 +17,7 @@ while true ; do
     -build_type) build_type="$2" ; shift 2 ;;
     -rpc) rpc="$2" ; shift 2 ;;
     -os) os="$2" ; shift 2 ;;
+    -py_v) py_v="$2" ; shift 2 ;;
     *) 
        if [[ ${#1} > 0 ]]; then
           echo "not supported arugments ${1}" ; exit 1 ;
@@ -26,6 +28,7 @@ while true ; do
   esac
 done
 
+echo "user py_v:${py_v}"
 
 echo "branch=${branch}"
 echo "place=${place}"
@@ -75,10 +78,10 @@ case "$os" in
     *) echo "not support ${os}" ; exit 1 ;;
 esac
 
-build_dir=build_${os}_${branch}_${build_type}_${place}_${testing}_${rpc}
+build_dir=build_${os}_${branch}_${build_type}_${place}_${testing}_${rpc}_${py_v}
 mkdir -p  ${build_dir}
 cd ${build_dir}
-third_party_dir=${os}_${build_type}_${place}
+third_party_dir=${os}_${build_type}_${place}_${py_v}
 
 set -x
 cmake ../../  -DTHIRD_PARTY_PATH=/paddle/build/third_party/${third_party_dir}/ \
@@ -97,6 +100,7 @@ cmake ../../  -DTHIRD_PARTY_PATH=/paddle/build/third_party/${third_party_dir}/ \
          -DWITH_INFERENCE_API_TEST=OFF \
          -DCMAKE_INSTALL_PREFIX=/root/paddlebuild/${third_party_dir}/install \
          -DWITH_DOC=ON \
+         -DPY_VERSION=${py_v} \
          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
          -DCUDA_ARCH_NAME=Volta
 set +x
