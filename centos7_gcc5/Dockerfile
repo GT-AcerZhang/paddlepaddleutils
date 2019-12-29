@@ -1,6 +1,42 @@
 FROM paddlepaddle/paddle_manylinux_devel:cuda10.0_cudnn7
 
-RUN yum install -y gcc gcc-c++ wget xz libgcc glibc-devel glibc-headers
+RUN yum install -y yum-utils
+RUN yum install -y centos-release-scl https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+
+RUN yum install -y zlib-devel bzip2-devel ncurses-devel sqlite-devel readline-devel tk-devel gdbm-devel db4-devel libpcap-devel xz-devel libffi-devel
+
+RUN yum install -y gcc gcc-c++ wget xz libgcc glibc-devel glibc-headers \
+   zlib-devel bzip2-devel ncurses-devel sqlite-devel readline-devel tk-devel gdbm-devel db4-devel libpcap-devel xz-devel gpg libffi-devel \
+   glibc-devel libstdc++-devel glib2-devel libX11-devel libXext-devel libXrender-devel  mesa-libGL-devel libICE-devel libSM-devel ncurses-devel
+
+RUN yum -y install \
+    automake \
+    autoconf \
+    libtool \
+    autotools-latest \
+    bison \
+    bzip2 \
+    patchelf \
+    cmake28 \
+    curl \
+    devtoolset-4-binutils \
+    devtoolset-4-gcc \
+    devtoolset-4-gcc-c++ \
+    devtoolset-4-gcc-gfortran \
+    diffutils \
+    expat-devel \
+    gettext \
+    git \
+    kernel-devel-`uname -r` \
+    file \
+    make \
+    nasm \
+    openssl \
+    openssl-devel \
+    patch \
+    unzip \
+    which \
+    yasm
 
 # Run some tests
 RUN gcc --version && \
@@ -22,7 +58,7 @@ RUN mkdir ~/tests && \
 # http://en.librehat.com/blog/build-gcc-5-dot-2-on-rhel-6/
 
 # Download and extract source code
-ENV gcc_version "5.3.0"
+ENV gcc_version "5.4.0"
 RUN wget --no-verbose \
         http://ftpmirror.gnu.org/gcc/gcc-${gcc_version}/gcc-${gcc_version}.tar.bz2 && \
     tar xf gcc-${gcc_version}.tar.bz2
@@ -39,7 +75,7 @@ RUN wget --no-verbose \
     tar xf mpfr-3.1.5.tar.xz && \
     mv mpfr-3.1.5 gcc-${gcc_version}/mpfr
 
-ENV PATH /usr/local/go/bin:/root/gopath/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+#ENV PATH /usr/local/go/bin:/root/gopath/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Compile and install GCC
 # "we highly recommend that GCC be built into a separate directory from the sources which does not reside within the source tree"
@@ -76,3 +112,19 @@ RUN echo "/usr/local/lib64" > usrLocalLib64.conf && \
 
 # Clean out all the garbage
 RUN rm -rf ~/${gcc_release} ~/{gcc_release}_build ~/tests
+
+#compile python37
+RUN cd /usr/src && \
+	wget https://www.python.org/ftp/python/3.7.0/Python-3.7.0.tgz && \
+	tar xzf Python-3.7.0.tgz && \
+	cd Python-3.7.0 && \
+	CFLAGS="-Wformat" ./configure --enable-optimizations --enable-shared && \
+	make altinstall
+
+#install pip
+RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
+	python3.7 get-pip.py && \
+	rm -rf get-pip.py && \
+	ln -s /usr/local/bin/python3.7 /usr/local/bin/python3 && \
+	ln -s /usr/local/bin/python3.7 /usr/local/bin/python
+
