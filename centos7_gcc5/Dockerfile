@@ -1,4 +1,4 @@
-FROM paddlepaddle/paddle_manylinux_devel:cuda10.0_cudnn7
+FROM nvidia/cuda:10.0-devel-centos7
 
 RUN yum install -y yum-utils
 RUN yum -y install centos-release-scl
@@ -44,7 +44,7 @@ RUN export LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib:$LD_LIBRARY_PATH
 RUN cd /usr/src
 
 # Download and extract source code
-EVN gcc_version="5.4.0"
+ENV gcc_version="5.4.0"
 RUN rm -rf gcc-${gcc_version}_build gcc-${gcc_version}
 RUN rm -f gcc-${gcc_version}.tar.bz2 gmp-6.1.0.tar.xz mpc-1.0.3.tar.gz mpfr-3.1.5.tar.xz
 
@@ -86,7 +86,7 @@ RUN mkdir gcc-${gcc_version}_build && \
         --with-default-libstdcxx-abi=gcc4-compatible && \
 	make clean && make -j  && make install
 
-RUn ln -s /opt/compiler/gcc540/bin/gcc /opt/compiler/gcc540/bin/cc
+RUN ln -s /opt/compiler/gcc540/bin/gcc /opt/compiler/gcc540/bin/cc
 ENV PATH /opt/compiler/gcc540/bin/:$PATH
 ENV LD_LIBRARY_PATH /opt/compiler/gcc540/lib:/opt/compiler/gcc540/lib64:${LD_LIBRARY_PATH}
 
@@ -109,10 +109,17 @@ RUN rm -f /usr/bin/python3 /usr/bin/pip3 && ln -s /opt/python/python3.7.0/bin/py
 
 RUN pip3 install  opencv-python wheel
 
-RUN cp ./lib/cuda10-cudnn7.6.5.32/include/cudnn.h  /usr/local/cuda/include/
-RUN cp ./lib/cuda10-cudnn7.6.5.32/lib64/libcudnn.so  /lib64/
-RUN cp ./lib/nccl_2.3.5/include/nccl.h /usr/local/cuda/include/
-RUN cp ./lib/soft/nccl_2.3.5/lib/libnccl.so /lib64/
+COPY ./lib/cuda10-cudnn7.6.5.32/include/cudnn.h  /usr/local/cuda/include/
+COPY ./lib/cuda10-cudnn7.6.5.32/lib64/libcudnn.so  /lib64/
+COPY ./lib/nccl_2.3.5/include/nccl.h /usr/local/cuda/include/
+COPY ./lib/nccl_2.3.5/lib/libnccl.so /lib64/
+
+RUN cd /usr/src/ && rm -rf  openssl-1.1.1.tar.gz openssl-1.1.1  curl-7.49.1.tar.gz  \
+    curl-7.49.1 binutils-2.27.tar.gz  binutils-2.27   \
+    protobuf-cpp-3.1.0.tar.gz  protobuf-3.1.0    \
+    patchelf-0.9-10.el7.x86_64.rpm  \
+    gcc-${gcc_version}_build gcc-${gcc_version} gcc-${gcc_version}.tar.bz2 gmp-6.1.0.tar.xz mpc-1.0.3.tar.gz mpfr-3.1.5.tar.xz \
+    cmake-3.5.2.tar.gz  cmake-3.5.2  Python-3.7.0.tgz  Python-3.7.0 
 
 
 
