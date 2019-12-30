@@ -48,20 +48,28 @@ mkdir gcc-${gcc_version}_build && \
 
 ln -s /opt/compiler/gcc540/bin/gcc /opt/compiler/gcc540/bin/cc
 export PATH=/opt/compiler/gcc540/bin/:$PATH
-export LD_LIBRARY_PATH=/opt/compiler/gcc540/lib:${LD_LIBRARY_PATH}
+export LD_LIBRARY_PATH=/opt/compiler/gcc540/lib:/opt/compiler/gcc540/lib64:${LD_LIBRARY_PATH}
+
+#cmake
+cd /usr/src && rm -f cmake-3.5.2.tar.gz && \
+	wget -q https://cmake.org/files/v3.5/cmake-3.5.2.tar.gz && tar xzf cmake-3.5.2.tar.gz && \
+	cd cmake-3.5.2 && ./bootstrap && \
+	make -j && make install && cd .. && rm  -f cmake-3.5.2.tar.gz
 
 #compile python37
 #CFLAGS="-Wformat" ./configure --enable-optimizations --enable-shared && \ 
-cd /usr/src && wget https://www.python.org/ftp/python/3.7.0/Python-3.7.0.tgz \
+cd /usr/src && wget https://www.python.org/ftp/python/3.7.0/Python-3.7.0.tgz && \
 	tar xzf Python-3.7.0.tgz && cd Python-3.7.0 && \
         CFLAGS="-Wformat" ./configure --prefix=/opt/python/python3.7.0 --with-openssl=/usr/local/ssl --enable-shared && \
 	make -j && make altinstall
 
-ln -s /opt/python/python3.5/bin/python3 /usr/bin/python3
-echo "/opt/python/python3.7.0" > /etc/ld.so.conf.d/python3.7.conf
+rm -f /usr/bin/python3 /usr/bin/pip3
+ln -s /opt/python/python3.7.0/bin/python3.7 /usr/bin/python3
+ln -s /opt/python/python3.7.0/bin/pip3.7 /usr/bin/pip3
+echo "/opt/python/python3.7.0/lib" > /etc/ld.so.conf.d/python3.7.0.conf
 ldconfig
 
-pip3 install -y  python-opencv
+pip3 install  opencv-python wheel
 
 #install pip
 #cd /usr/src && curl -O https://bootstrap.pypa.io/get-pip.py && \
