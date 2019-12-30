@@ -19,10 +19,6 @@ RUN yum -y install \
     patchelf \
     cmake28 \
     curl \
-    devtoolset-4-binutils \
-    devtoolset-4-gcc \
-    devtoolset-4-gcc-c++ \
-    devtoolset-4-gcc-gfortran \
     diffutils \
     expat-devel \
     gettext \
@@ -128,3 +124,6 @@ RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
 	ln -s /usr/local/bin/python3.7 /usr/local/bin/python3 && \
 	ln -s /usr/local/bin/python3.7 /usr/local/bin/python
 
+RUN wget https://ftp.gnu.org/gnu/binutils/binutils-2.27.tar.gz && \
+	tar xzf binutils-2.27.tar.gz && cd binutils-2.27 && \
+	./configure --prefix=/opt/rh/devtoolset-2/root/usr/ --enable-64-bit-archive && make -j `nproc` && make install
