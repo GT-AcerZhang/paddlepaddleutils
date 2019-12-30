@@ -39,7 +39,7 @@ cd /usr/src &&  rm -f protobuf-cpp-3.1.0.tar.gz && \
 #	tar -xzf patchelf-0.9njs2.tar.gz &&  \
 #	 cd patchelf-0.9njs2 && ./configure && make -j && make install
 unset https_proxy http_proxy
-cd /usr/src/ && wget http://download-ib01.fedoraproject.org/pub/epel/7/x86_64/Packages/p/patchelf-0.9-10.el7.x86_64.rpm \
+cd /usr/src/ && wget http://download-ib01.fedoraproject.org/pub/epel/7/x86_64/Packages/p/patchelf-0.9-10.el7.x86_64.rpm && \
        rpm -Uvh patchelf-0.9-10.el7.x86_64.rpm
 
 export PATH=/usr/local/bin:$PATH
