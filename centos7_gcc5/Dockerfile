@@ -45,31 +45,30 @@ RUN cd /usr/src
 
 # Download and extract source code
 ENV gcc_version="5.4.0"
-RUN rm -rf gcc-${gcc_version}_build gcc-${gcc_version}
-RUN rm -f gcc-${gcc_version}.tar.bz2 gmp-6.1.0.tar.xz mpc-1.0.3.tar.gz mpfr-3.1.5.tar.xz
+RUN cd /usr/src/ && rm -rf gcc-${gcc_version}_build gcc-${gcc_version}  gcc-${gcc_version}.tar.bz2 gmp-6.1.0.tar.xz mpc-1.0.3.tar.gz mpfr-3.1.5.tar.xz
 
-RUN wget --no-verbose --no-check-certificate \
+RUN cd /usr/src && wget --no-verbose --no-check-certificate \
         http://ftpmirror.gnu.org/gcc/gcc-${gcc_version}/gcc-${gcc_version}.tar.bz2 && \
     tar xf gcc-${gcc_version}.tar.bz2
 
-RUN wget --no-verbose --no-check-certificate \
+RUN cd /usr/src/ && wget --no-verbose --no-check-certificate \
         https://gmplib.org/download/gmp/gmp-6.1.0.tar.xz && \
     tar xf gmp-6.1.0.tar.xz && \
     mv gmp-6.1.0 gcc-${gcc_version}/gmp
 
-RUN wget --no-verbose --no-check-certificate \
+RUN cd /usr/src && wget --no-verbose --no-check-certificate \
         ftp://ftp.gnu.org/gnu/mpc/mpc-1.0.3.tar.gz && \
     tar xf mpc-1.0.3.tar.gz && \
     mv mpc-1.0.3 gcc-${gcc_version}/mpc
 
-RUN wget --no-verbose --no-check-certificate \
+RUN cd /usr/src && wget --no-verbose --no-check-certificate \
         https://www.mpfr.org/mpfr-3.1.5/mpfr-3.1.5.tar.xz && \
     tar xf mpfr-3.1.5.tar.xz && \
     mv mpfr-3.1.5 gcc-${gcc_version}/mpfr
 
 # Compile and install GCC
 # "we highly recommend that GCC be built into a separate directory from the sources which does not reside within the source tree"
-RUN mkdir gcc-${gcc_version}_build && \
+RUN cd /usr/src/ && mkdir gcc-${gcc_version}_build && \
     cd gcc-${gcc_version}_build && \
     ../gcc-${gcc_version}/configure \
         --prefix=/opt/compiler/gcc540 \
