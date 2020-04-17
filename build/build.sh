@@ -123,6 +123,8 @@ cmake ../../  -DTHIRD_PARTY_PATH=/paddle/build/third_party/${third_party_dir}/ \
          -DPY_VERSION=${py_v} \
          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
          -DCUDA_ARCH_NAME=Volta
+         #-DWITH_BOX_PS=ON
+         #-DWITH_GLOO=True 
 set +x
 
 #if [[ $os == "cent" ]]; then
