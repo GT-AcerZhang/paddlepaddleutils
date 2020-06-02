@@ -19,10 +19,12 @@ import ast
 import paddle.fluid as fluid
 import paddlehub as hub
 from reader import ChnSentiCorp
+from paddle.fluid.transpiler.details import program_to_code
+import paddle_serving_client.io as serving_io
 
 # yapf: disable
 parser = argparse.ArgumentParser(__doc__)
-parser.add_argument("--num_epoch", type=int, default=3, help="Number of epoches for fine-tuning.")
+parser.add_argument("--num_epoch", type=int, default=1, help="Number of epoches for fine-tuning.")
 parser.add_argument("--use_gpu", type=ast.literal_eval, default=True, help="Whether use GPU for finetuning, input should be True or False")
 parser.add_argument("--learning_rate", type=float, default=5e-5, help="Learning rate used to train with warmup.")
 parser.add_argument("--weight_decay", type=float, default=0.01, help="Weight decay rate for L2 regularizer.")
@@ -34,12 +36,21 @@ parser.add_argument("--use_data_parallel", type=ast.literal_eval, default=False,
 args = parser.parse_args()
 # yapf: enable.
 
+def save_model(inputs, output, program):
+    feed_keys = ["input_ids", "position_ids", "segment_ids", "input_mask"]
+    fetch_keys = ["pooled_output", "sequence_output"]
+    feed_dict = dict(zip(feed_keys, [inputs[x] for x in feed_keys]))
+    fetch_dict = dict(zip(fetch_keys, [outputs[x] for x in fetch_keys]))
+
+    serving_io.save_model("ernie_senti_server", "ernie_senti_client", feed_dict, fetch_dict, program)
+
 if __name__ == '__main__':
 
     # Load Paddlehub ERNIE pretrained model
     module = hub.Module(name="ernie")
     inputs, outputs, program = module.context(
         trainable=True, max_seq_len=args.max_seq_len)
+    #print("program:", program_to_code(program))
 
     # Download dataset and use accuracy as metrics
     # Choose dataset: GLUE/XNLI/ChinesesGLUE/NLPCC-DBQA/LCQMC
@@ -102,4 +113,5 @@ if __name__ == '__main__':
     # Finetune and evaluate by PaddleHub's API
     # will finish training, evaluation, testing, save model automatically
     cls_task.finetune_and_eval()
-    cls_task.save_inference_model("cls_fintune_1")
+    #cls_task.save_inference_model("cls_fintune_1")
+    save_model(inputs, outputs, program) 
