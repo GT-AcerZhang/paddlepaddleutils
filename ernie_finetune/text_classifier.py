@@ -28,7 +28,7 @@ parser.add_argument("--weight_decay", type=float, default=0.01, help="Weight dec
 parser.add_argument("--warmup_proportion", type=float, default=0.1, help="Warmup proportion params for warmup strategy")
 parser.add_argument("--checkpoint_dir", type=str, default=None, help="Directory to model checkpoint")
 parser.add_argument("--max_seq_len", type=int, default=512, help="Number of words of the longest seqence.")
-parser.add_argument("--batch_size", type=int, default=32, help="Total examples' number in batch for training.")
+parser.add_argument("--batch_size", type=int, default=16, help="Total examples' number in batch for training.")
 parser.add_argument("--use_data_parallel", type=ast.literal_eval, default=False, help="Whether use data parallel.")
 args = parser.parse_args()
 # yapf: enable.
@@ -93,6 +93,10 @@ if __name__ == '__main__':
         config=config,
         metrics_choices=metrics_choices)
 
+    cls_task.load_checkpoint()
+    cls_task.save_inference_model("cls_fintune_0")
+
     # Finetune and evaluate by PaddleHub's API
     # will finish training, evaluation, testing, save model automatically
     cls_task.finetune_and_eval()
+    cls_task.save_inference_model("cls_fintune_1")

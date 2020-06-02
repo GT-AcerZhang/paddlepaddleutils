@@ -37,6 +37,9 @@ class ChnSentiCorp(BaseNLPDataset):
             return examples
 
     def student_reader(self, input_file, vocab_file):
+        """
+        return [([seg_sentence_idxs], label, sentence), ()...]
+        """
         with codecs.open(vocab_file, "r", encoding="UTF-8") as f:
             student_vocab = {i.strip(): l for l, i in enumerate(f.readlines())}
 
@@ -48,7 +51,7 @@ class ChnSentiCorp(BaseNLPDataset):
                 idx = student_vocab[word]  if word in student_vocab else student_vocab['[UNK]']
                 s.append(idx)
                 #print("word_idx:", idx)
-            r.append((s, t[2]))
+            r.append((s, t[2], t[0]))
 
         return r
 
