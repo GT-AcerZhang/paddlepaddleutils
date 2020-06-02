@@ -80,20 +80,31 @@ def optimizer_func():
     return fluid.optimizer.Adagrad(learning_rate=0.002)
 
 
+def get_conn_data(batch_data):
+    s = []
+    t = []
+    for  r in batch_data:
+        s.append((r[0], r[1]))
+        t.append(r[2])
+
+    return s, r
+
 def train(use_cuda, params_dirname):
     place = fluid.CUDAPlace(0) if use_cuda else fluid.CPUPlace()
 
-    print("Loading IMDB word dict....")
+    #print("Loading IMDB word dict....")
     #word_dict = paddle.dataset.imdb.word_dict()
     ds = ChnSentiCorp()
-    t_reader = ds.student_reader("./data/train.part.0", "./data/vocab.bow.txt")
-    d_reader = ds.student_reader("./data/dev.part.0", "./data/vocab.bow.txt")
+    word_dict = ds.student_word_dict("./data/vocab.bow.txt")
 
-    print("Reading training data....")
+    t_reader = ds.student_reader("./data/train.part.0", word_dict)
+    d_reader = ds.student_reader("./data/dev.part.0", word_dict)
+
+    #print("Reading training data....")
     if args.enable_ce:
         #train_reader = paddle.batch(
         #    paddle.dataset.imdb.train(word_dict), batch_size=BATCH_SIZE)
-        train_reader = paddle.batch(ds, batch_size=BATCH_SIZE)
+        train_reader = paddle.batch(t_reader, batch_size=BATCH_SIZE)
     else:
         #train_reader = paddle.batch(
         #    paddle.reader.shuffle(
@@ -137,7 +148,8 @@ def train(use_cuda, params_dirname):
         feeder_test = fluid.DataFeeder(feed_list=feed_var_list, place=place)
         test_exe = fluid.Executor(place)
         accumulated = len(train_func_outputs) * [0]
-        for test_data in reader():
+        for r in reader():
+            test_data, _ = get_conn_data(r)
             avg_cost_np = test_exe.run(
                 program=program,
                 feed=feeder_test.feed(test_data),
@@ -158,7 +170,8 @@ def train(use_cuda, params_dirname):
 
         for epoch_id in range(pass_num):
             for step_id, r in enumerate(train_reader()):
-                data = r[0]
+                student_data, teacher_data = get_conn_data(r)
+                data = student_data
                 metrics = exe.run(
                     main_program,
                     feed=feeder.feed(data),
@@ -186,64 +199,11 @@ def train(use_cuda, params_dirname):
 
     train_loop()
 
-
-def infer(use_cuda, params_dirname=None):
-    place = fluid.CUDAPlace(0) if use_cuda else fluid.CPUPlace()
-    word_dict = paddle.dataset.imdb.word_dict()
-
-    exe = fluid.Executor(place)
-
-    inference_scope = fluid.core.Scope()
-    with fluid.scope_guard(inference_scope):
-        # Use fluid.io.load_inference_model to obtain the inference program desc,
-        # the feed_target_names (the names of variables that will be feeded
-        # data using feed operators), and the fetch_targets (variables that
-        # we want to obtain data from using fetch operators).
-        [inferencer, feed_target_names,
-         fetch_targets] = fluid.io.load_inference_model(params_dirname, exe)
-
-        # Setup input by creating LoDTensor to represent sequence of words.
-        # Here each word is the basic element of the LoDTensor and the shape of
-        # each word (base_shape) should be [1] since it is simply an index to
-        # look up for the corresponding word vector.
-        # Suppose the length_based level of detail (lod) info is set to [[3, 4, 2]],
-        # which has only one lod level. Then the created LoDTensor will have only
-        # one higher level structure (sequence of words, or sentence) than the basic
-        # element (word). Hence the LoDTensor will hold data for three sentences of
-        # length 3, 4 and 2, respectively.
-        # Note that lod info should be a list of lists.
-        reviews_str = [
-            'read the book forget the movie', 'this is a great movie',
-            'this is very bad'
-        ]
-        reviews = [c.split() for c in reviews_str]
-
-        UNK = word_dict['<unk>']
-        lod = []
-        for c in reviews:
-            lod.append([np.int64(word_dict.get(words, UNK)) for words in c])
-
-        base_shape = [[len(c) for c in lod]]
-
-        tensor_words = fluid.create_lod_tensor(lod, base_shape, place)
-        assert feed_target_names[0] == "words"
-        results = exe.run(
-            inferencer,
-            feed={feed_target_names[0]: tensor_words},
-            fetch_list=fetch_targets,
-            return_numpy=False)
-        np_data = np.array(results[0])
-        for i, r in enumerate(np_data):
-            print("Predict probability of ", r[0], " to be positive and ", r[1],
-                  " to be negative for review \'", reviews_str[i], "\'")
-
-
 def main(use_cuda):
     if use_cuda and not fluid.core.is_compiled_with_cuda():
         return
     params_dirname = "understand_sentiment_conv.inference.model"
     train(use_cuda, params_dirname)
-    infer(use_cuda, params_dirname)
 
 
 if __name__ == '__main__':

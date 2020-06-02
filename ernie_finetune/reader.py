@@ -21,6 +21,8 @@ class ChnSentiCorp(BaseNLPDataset):
             label_list=["0", "1"],
         )
 
+        self._word_dict = None
+
     def __read_file(self, input_file):
         with codecs.open(input_file, "r", encoding="UTF-8") as f:
             for line in f:
@@ -51,24 +53,25 @@ class ChnSentiCorp(BaseNLPDataset):
 
         return examples
 
-    def student_reader(self, input_file, vocab_file):
+    def student_word_dict(self, vocab_file):
+        with codecs.open(vocab_file, "r", encoding="UTF-8") as f:
+            self._word_dict = {i.strip(): l for l, i in enumerate(f.readlines())}
+
+        return self._word_dict
+
+    def student_reader(self, input_file, word_dict):
         """
         return [([seg_sentence_idxs], label, sentence), ()...]
         """
-        with codecs.open(vocab_file, "r", encoding="UTF-8") as f:
-            student_vocab = {i.strip(): l for l, i in enumerate(f.readlines())}
+        def reader():
+            for t in self.__read_file(input_file):
+                s = []
+                for word in space_tokenizer(t[1]):
+                    idx = word_dict[word]  if word in word_dict else word_dict['[UNK]']
+                    s.append(idx)
+                yield s, t[2], t[0]
 
-        #print("student_vocab", student_vocab)
-        r = []
-        for t in self.__read_file(input_file):
-            s = []
-            for word in space_tokenizer(t[1]):
-                idx = student_vocab[word]  if word in student_vocab else student_vocab['[UNK]']
-                s.append(idx)
-                #print("word_idx:", idx)
-            r.append((s, t[2], t[0]))
-
-        return r
+        return reader
 
 
 if __name__ == '__main__':
