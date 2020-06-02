@@ -11,8 +11,15 @@ def space_tokenizer(i):
 
 class ChnSentiCorp(BaseNLPDataset):
     def __init__(self):
-        pass
-        
+        base_path = "./data/"
+        super(ChnSentiCorp, self).__init__(
+            base_path=base_path,
+            train_file="train.part.0",
+            dev_file="dev.part.0",
+            test_file="test.part.0",
+            label_file=None,
+            label_list=["0", "1"],
+        )
 
     def __read_file(self, input_file):
         with codecs.open(input_file, "r", encoding="UTF-8") as f:
@@ -21,7 +28,7 @@ class ChnSentiCorp(BaseNLPDataset):
                 if len(line) <= 0:
                     continue
                 arr = line.split("\t")
-                assert len(arr) == 3
+                #print("line:", len(arr))
                 yield arr
 
 
@@ -29,12 +36,20 @@ class ChnSentiCorp(BaseNLPDataset):
         seq_id = 0
         examples = []
         for t in self.__read_file(input_file):
-            example = InputExample(
+            if len(t) == 2:
+                example = InputExample(
+                    guid=seq_id, label=t[1], text_a=t[0])
+                #print("t2", t[1])
+            elif len(t) == 3:
+                example = InputExample(
                     guid=seq_id, label=t[2], text_a=t[0])
+                #print("t3", t[2])
+            else:
+                assert False, 'invalid format'
             seq_id += 1
             examples.append(example)
 
-            return examples
+        return examples
 
     def student_reader(self, input_file, vocab_file):
         """
@@ -58,5 +73,5 @@ class ChnSentiCorp(BaseNLPDataset):
 
 if __name__ == '__main__':
     ds = ChnSentiCorp()
-    ds._read_file("./data/train/part.0")
-    ds.student_reader("./data/train/part.0", "./data/vocab.bow.txt")
+    ds._read_file("./data/train.part.0")
+    ds.student_reader("./data/train.part.0", "./data/vocab.bow.txt")

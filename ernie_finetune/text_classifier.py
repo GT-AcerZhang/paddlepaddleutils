@@ -18,6 +18,7 @@ import argparse
 import ast
 import paddle.fluid as fluid
 import paddlehub as hub
+from reader import ChnSentiCorp
 
 # yapf: disable
 parser = argparse.ArgumentParser(__doc__)
@@ -43,7 +44,8 @@ if __name__ == '__main__':
     # Download dataset and use accuracy as metrics
     # Choose dataset: GLUE/XNLI/ChinesesGLUE/NLPCC-DBQA/LCQMC
     # metric should be acc, f1 or matthews
-    dataset = hub.dataset.ChnSentiCorp()
+    #dataset = hub.dataset.ChnSentiCorp()
+    dataset = ChnSentiCorp()
     metrics_choices = ["acc"]
 
     # For ernie_tiny, it use sub-word to tokenize chinese sentence
@@ -93,8 +95,9 @@ if __name__ == '__main__':
         config=config,
         metrics_choices=metrics_choices)
 
-    cls_task.load_checkpoint()
-    cls_task.save_inference_model("cls_fintune_0")
+    if args.checkpoint_dir:
+        cls_task.load_checkpoint()
+        cls_task.save_inference_model("cls_fintune_0")
 
     # Finetune and evaluate by PaddleHub's API
     # will finish training, evaluation, testing, save model automatically
