@@ -42,7 +42,7 @@ def parse_args():
     return args
 
 
-def convolution_net(data, input_dim, class_dim, emb_dim, hid_dim):
+def convolution_net(data, input_dim, class_dim, emb_dim, hid_dim, test=False):
     emb = fluid.embedding(input=data, size=[input_dim, emb_dim], is_sparse=True)
     conv_3 = fluid.nets.sequence_conv_pool(
         input=emb,
@@ -56,21 +56,31 @@ def convolution_net(data, input_dim, class_dim, emb_dim, hid_dim):
         filter_size=4,
         act="tanh",
         pool_type="sqrt")
-    prediction = fluid.layers.fc(
-        input=[conv_3, conv_4], size=class_dim, act="softmax")
+    if test:
+        prediction = fluid.layers.fc(
+            input=[conv_3, conv_4], size=class_dim, act='softmax')
+    else:
+        prediction = fluid.layers.fc(
+            input=[conv_3, conv_4], size=class_dim)
     return prediction
 
 
 def inference_program(word_dict):
     dict_dim = len(word_dict)
     data = fluid.data(name="words", shape=[None], dtype="int64", lod_level=1)
-    net = convolution_net(data, dict_dim, CLASS_DIM, EMB_DIM, HID_DIM)
+    net = convolution_net(data, dict_dim, CLASS_DIM, EMB_DIM, HID_DIM, test=True)
     return net
 
 
-def train_program(prediction):
+def train_program(prediction, teacher_predict_dim):
     label = fluid.data(name="label", shape=[None, 1], dtype="int64")
-    cost = fluid.layers.cross_entropy(input=prediction, label=label)
+
+    teacher_logits = fluid.data(
+        name='teacher_logits',
+        shape=[None, HID_DIM],
+        dtype='float32')
+
+    cost = fluid.layers.softmax_with_cross_entropy(prediction, label=teacher_logits)
     avg_cost = fluid.layers.mean(cost)
     accuracy = fluid.layers.accuracy(input=prediction, label=label)
     return [avg_cost, accuracy]
@@ -92,30 +102,20 @@ def get_conn_data(batch_data):
 def train(use_cuda, params_dirname):
     place = fluid.CUDAPlace(0) if use_cuda else fluid.CPUPlace()
 
-    #print("Loading IMDB word dict....")
-    #word_dict = paddle.dataset.imdb.word_dict()
     ds = ChnSentiCorp()
     word_dict = ds.student_word_dict("./data/vocab.bow.txt")
 
     t_reader = ds.student_reader("./data/train.part.0", word_dict)
     d_reader = ds.student_reader("./data/dev.part.0", word_dict)
 
-    #print("Reading training data....")
     if args.enable_ce:
-        #train_reader = paddle.batch(
-        #    paddle.dataset.imdb.train(word_dict), batch_size=BATCH_SIZE)
         train_reader = paddle.batch(t_reader, batch_size=BATCH_SIZE)
     else:
-        #train_reader = paddle.batch(
-        #    paddle.reader.shuffle(
-        #        paddle.dataset.imdb.train(word_dict), buf_size=25000),
-        #    batch_size=BATCH_SIZE)
         train_reader = paddle.batch(
             paddle.reader.shuffle(
                 t_reader, buf_size=25000),
             batch_size=BATCH_SIZE)
 
-    print("Reading testing data....")
     test_reader = paddle.batch(
         d_reader, batch_size=BATCH_SIZE)
 

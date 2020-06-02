@@ -12,6 +12,11 @@ from reader import ChnSentiCorp
 from paddle_edl.distill.distill_reader import DistillReader
 import re
 
+import os
+import sys
+from paddle_serving_client import Client
+from paddle_serving_app.reader import ChineseBertReader
+
 parser = argparse.ArgumentParser(__doc__)
 parser.add_argument("--fixed_teacher", type=str, default=None, help="fixed teacher for debug local distill")
 args = parser.parse_args()
@@ -90,7 +95,7 @@ def train(train_reader, test_reader, word_dict):
     opt = AdamW(learning_rate=LR, parameter_list=model.parameters(), weight_decay=0.01, grad_clip=g_clip)
     model.train()
     for epoch in range(EPOCH):
-        for step, (ids_student, label, ids, logits_t) in enumerate(train_reader()):
+        for step, (_,_,_,_,ids_student,label,logits_t) in enumerate(train_reader()):
             _, logits_s = model(ids_student) # student 模型输出logits
             loss_ce, _ = model(ids_student, labels=label)
             loss_kd = KL(logits_s, logits_t)    # 由KL divergence度量两个分布的距离
@@ -103,6 +108,21 @@ def train(train_reader, test_reader, word_dict):
         f1 = evaluate_student(model, test_reader)
         print('student f1 %.5f' % f1)
 
+def get_reader(train_reader, key_list):
+    bert_reader = ChineseBertReader({'max_seq_len':128})
+    def reader():
+        for r in train_reader():
+            feed_dict = bert_reader.process(r[2])
+            #print(type(feed_dict))
+            #sys.exit(0)
+            l = []
+            for k in key_list:
+                l.append(feed_dict[k])
+            l.appendr.extend([r[0], r[1]])
+            yield l
+
+    return reader
+
 if __name__ == "__main__":
     place = F.CUDAPlace(0)
     D.guard(place).__enter__()
@@ -113,16 +133,16 @@ if __name__ == "__main__":
     t_reader = ds.student_reader("./data/train.part.0", word_dict)
     d_reader = ds.student_reader("./data/dev.part.0", word_dict)
 
+    feed_keys = ["input_ids", "position_ids", "segment_ids", "input_mask", "ids_student", "label"]
     train_reader = P.batch(
         P.reader.shuffle(
-            t_reader, buf_size=25000),
+            get_reader(t_reader, feed_keys), buf_size=25000),
         batch_size=16)
 
     test_reader = P.batch(
         d_reader, batch_size=16)
 
-
-    dr = DistillReader(['ids_student', 'label', 'ids_teacher'], predicts=['pooled_output'])
+    dr = DistillReader(feed_keys, predicts=['pooled_output'])
     dr.set_teacher_batch_size(2)
     dr.set_serving_conf_file("./ernie_senti_client/serving_client_conf.prototxt")
     if args.fixed_teacher:
