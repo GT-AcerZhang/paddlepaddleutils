@@ -90,7 +90,23 @@ class CNN(D.Layer):
             loss = None
         return loss, logits
 
-def train(train_reader, test_reader, word_dict):
+def train_withput_distill(train_reader, test_reader, word_dict):
+    model = CNN(word_dict)
+    g_clip = F.clip.GradientClipByGlobalNorm(1.0) #experimental
+    opt = AdamW(learning_rate=LR, parameter_list=model.parameters(), weight_decay=0.01, grad_clip=g_clip)
+    model.train()
+    for epoch in range(EPOCH):
+        for step, (_,_,_,_,ids_student,label,logits_t) in enumerate(train_reader()):
+            loss, _ = model(ids_student, labels=label)
+            loss.backward()
+            if step % 10 == 0:
+                print('[step %03d] distill train loss %.5f lr %.3e' % (step, loss.numpy(), opt.current_step_lr()))
+            opt.minimize(loss)
+            model.clear_gradients()
+        f1 = evaluate_student(model, test_reader)
+        print('without distillation student f1 %.5f' % f1)
+
+def train_with_distill(train_reader, test_reader, word_dict):
     model = CNN(word_dict)
     g_clip = F.clip.GradientClipByGlobalNorm(1.0) #experimental
     opt = AdamW(learning_rate=LR, parameter_list=model.parameters(), weight_decay=0.01, grad_clip=g_clip)
@@ -107,7 +123,7 @@ def train(train_reader, test_reader, word_dict):
             opt.minimize(loss)
             model.clear_gradients()
         f1 = evaluate_student(model, test_reader)
-        print('student f1 %.5f' % f1)
+        print('wth distillation student f1 %.5f' % f1)
 
 def get_reader(train_reader, key_list):
     bert_reader = ChineseBertReader({'max_seq_len':512, "vocab_file":"./data/vocab.txt"})
@@ -152,4 +168,5 @@ if __name__ == "__main__":
         dr.set_fixed_teacher(args.fixed_teacher)
     train_reader = dr.set_sample_list_generator(train_reader)
 
-    train(train_reader, test_reader, word_dict)
+    train_without_distill(train_reader, test_reader, word_dict)
+    train_with_distill(train_reader, test_reader, word_dict)
