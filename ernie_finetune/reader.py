@@ -7,6 +7,8 @@ from paddlehub.dataset import InputExample
 from paddlehub.common.dir import DATA_HOME
 from paddlehub.dataset.base_nlp_dataset import BaseNLPDataset
 import paddle as P
+import paddle.fluid.dygraph as D
+import numpy as np
 
 def space_tokenizer(i):
     return i.split()
@@ -110,7 +112,7 @@ class ChnSentiCorp(BaseNLPDataset):
 
             b=[[],[],[]]
             for rec in s_reader():
-                if len(b) == batch_size:
+                if len(b[0]) == batch_size:
                     yield b
                     b=[[], [], []]
                     continue
@@ -125,9 +127,9 @@ class ChnSentiCorp(BaseNLPDataset):
 
     def pad_batch_reader(self, input_file, word_dict, batch_size):
         def reader():
-            s_reader = self.batch_reader(input_file, word_dict, batch_size)
-            for inst in s_reader():
-                b[0] = D.base.to_variable(pad_batch_data(ids, 'int64'))
+            b_reader = self.batch_reader(input_file, word_dict, batch_size)
+            for b in b_reader():
+                b[0] = D.base.to_variable(pad_batch_data(b[0], 'int64'))
                 b[1] = D.base.to_variable(np.array(b[1]).astype('int64'))
                 yield b
 

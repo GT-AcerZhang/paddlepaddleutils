@@ -121,8 +121,10 @@ def train_without_distill(train_reader, test_reader, word_dict):
     opt = AdamW(learning_rate=LR, parameter_list=model.parameters(), weight_decay=0.01, grad_clip=g_clip)
     model.train()
     for epoch in range(EPOCH):
-        for step, idx_student, labels, _ in enumerate(train_reader()):
-            loss, _ = model(ids_student, labels=label)
+        for step, (ids_student, labels, sentence) in enumerate(train_reader()):
+            #print(ids_student.shape, labels.shape,  sentence)
+            sys.exit(0)
+            loss, _ = model(ids_student, labels=labels)
             loss.backward()
             if step % 10 == 0:
                 print('[step %03d] distill train loss %.5f lr %.3e' % (step, loss.numpy(), opt.current_step_lr()))
@@ -175,7 +177,7 @@ if __name__ == "__main__":
     batch_size=16
 
     # student train and dev
-    train_reader = ds.pad_batch_reader("./data/train.part.0", word_dict, batch_size=16)
+    train_reader = ds.pad_batch_reader("./data/train.part.0", word_dict, batch_size=batch_size)
     dev_reader = ds.pad_batch_reader("./data/dev.part.0", word_dict, batch_size=batch_size)
 
     train_without_distill(train_reader, dev_reader, word_dict)
