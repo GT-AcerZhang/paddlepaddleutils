@@ -6,9 +6,23 @@ import sys
 from paddlehub.dataset import InputExample
 from paddlehub.common.dir import DATA_HOME
 from paddlehub.dataset.base_nlp_dataset import BaseNLPDataset
+import paddle as P
 
 def space_tokenizer(i):
     return i.split()
+
+def pad_batch_data(data, dtype, pad_idx=0, max_len=-1):
+    if max_len <= 0:
+        for s in data:
+            if len(s) > max_len:
+                max_len = len(s)
+
+    inst_data = np.array([
+        list(inst) + list([pad_idx] * (max_len - len(inst))) for inst in data
+    ])
+
+    return np.array(inst_data).astype(dtype)
+
 
 class ChnSentiCorp(BaseNLPDataset):
     def __init__(self):
@@ -83,28 +97,41 @@ class ChnSentiCorp(BaseNLPDataset):
                 for word in space_tokenizer(t[1]):
                     idx = word_dict[word]  if word in word_dict else word_dict['[UNK]']
                     s.append(idx)
-                #print(s, t[2], t[0])
-                #sys.exit(0)
+
                 yield s, t[2], t[0]
 
         return reader
 
-    """
-    def batch(reader, batch_size):
-        c0, c1, c2 = [], [], []
-        for rec in reader():
-            c0.append(rec[0])
-            c1.append(rec[1])
-            c2.append(rec[2])
-            if len(c0) == batch_size:
-                yield c0, c1, c2
-                c0, c1, c2 = [], [], []
+    def batch_reader(self, input_file, word_dict, batch_size):
+        def reader():
+            s_reader = P.reader.shuffle(
+                self.student_reader(input_file, word_dict), 
+                    buf_size=batch_size * 100)
 
-        if len(c0) > 0:
-            yield c0, c1, c2
-    """
+            b=[[],[],[]]
+            for rec in s_reader():
+                if len(b) == batch_size:
+                    yield b
+                    b=[[], [], []]
+                    continue
 
+                for i in range(len(rec)):
+                    b[i].append(rec[i])
 
+            if len(b[0]) >0:
+                yield b
+
+        return reader
+
+    def pad_batch_reader(self, input_file, word_dict, batch_size):
+        def reader():
+            s_reader = self.batch_reader(input_file, word_dict, batch_size)
+            for inst in s_reader():
+                b[0] = D.base.to_variable(pad_batch_data(ids, 'int64'))
+                b[1] = D.base.to_variable(np.array(b[1]).astype('int64'))
+                yield b
+
+        return reader
 
 if __name__ == '__main__':
     ds = ChnSentiCorp()

@@ -1,4 +1,3 @@
-: utf-8
 import sys
 import os
 
@@ -48,11 +47,12 @@ def KL(pred, target):
     loss = L.kldiv_loss(pred, target)
     return loss
 
-def evaluate_student(model, dataset):
+def evaluate_student(model, test_reader):
     all_pred, all_label = [], []
     with D.base._switch_tracer_mode_guard_(is_train=False):
         model.eval()
-        for step, (ids_student, labels, _) in enumerate(test_reader()):
+        for step, output in enumerate(test_reader()):
+            ids_student, labels, sentence = re_batch(output)
             _, logits = model(ids_student)
             pred = L.argmax(logits, -1)
             all_pred.extend(pred.numpy())
@@ -60,6 +60,30 @@ def evaluate_student(model, dataset):
         f1 = f1_score(all_label, all_pred, average='macro')
         model.train()
         return f1 
+
+
+class BOW(D.Layer):
+    def __init__(self, word_dict):
+        super().__init__()
+        self.emb = D.Embedding([len(word_dict), 128], padding_idx=0)
+        self.fc = D.Linear(128, 2)
+
+    def forward(self, ids, labels=None):
+        embbed = self.emb(ids)
+        pad_mask = L.unsqueeze(L.cast(ids!=0, 'float32'), [-1])
+
+        embbed = L.reduce_sum(embbed * pad_mask, 1)
+        embbed = L.softsign(embbed)
+        logits = self.fc(embbed)
+
+        if labels is not None:
+            if len(labels.shape)==1:
+                labels = L.reshape(labels, [-1, 1])
+            loss = L.softmax_with_cross_entropy(logits, labels)
+            loss = L.reduce_mean(loss)
+        else:
+            loss = None
+        return loss, logits
 
 class CNN(D.Layer):
     def __init__(self, word_dict):
@@ -91,31 +115,19 @@ class CNN(D.Layer):
             loss = None
         return loss, logits
 
-def re_batch(batcher):
-    c0, c1, c2 = [], [], []
-    for r in batcher:
-        c0.append(r[0])
-        c1.append(r[1])
-        c2.append(r[2])
-    return c0, c1, c2
-
 def train_without_distill(train_reader, test_reader, word_dict):
-    model = CNN(word_dict)
+    model = BOW(word_dict)
     g_clip = F.clip.GradientClipByGlobalNorm(1.0) #experimental
     opt = AdamW(learning_rate=LR, parameter_list=model.parameters(), weight_decay=0.01, grad_clip=g_clip)
     model.train()
     for epoch in range(EPOCH):
-        for step, output in enumerate(train_reader()):
-            ids_student, label, sentence = re_batch(output)
-            #print(sentence)
-            #sys.exit(0)
+        for step, idx_student, labels, _ in enumerate(train_reader()):
             loss, _ = model(ids_student, labels=label)
             loss.backward()
             if step % 10 == 0:
                 print('[step %03d] distill train loss %.5f lr %.3e' % (step, loss.numpy(), opt.current_step_lr()))
             opt.minimize(loss)
             model.clear_gradients()
-            sys.exit(0)
         f1 = evaluate_student(model, test_reader)
         print('without distillation student f1 %.5f' % f1)
 
@@ -163,16 +175,16 @@ if __name__ == "__main__":
     batch_size=16
 
     # student train and dev
-    rec_train_reader = ds.student_reader("./data/train.part.0", word_dict)
-    dev_reader = P.batch(ds.student_reader("./data/dev.part.0", word_dict), batch_size=batch_size)
+    train_reader = ds.pad_batch_reader("./data/train.part.0", word_dict, batch_size=16)
+    dev_reader = ds.pad_batch_reader("./data/dev.part.0", word_dict, batch_size=batch_size)
 
-    batch_train_reader = P.batch(rec_train_reader, batch_size=batch_size)
-    train_without_distill(batch_train_reader, dev_reader, word_dict)
+    train_without_distill(train_reader, dev_reader, word_dict)
+    sys.exit(0)
 
     feed_keys = ["input_ids", "position_ids", "segment_ids", "input_mask", "ids_student", "label"]
     distill_train_reader = P.batch(
         P.reader.shuffle(
-        get_reader(rec_train_reader, feed_keys[:-2]), buf_size=batch_size * 10),
+        get_reader(rec_train_reader, feed_keys[:-2]), buf_size=batch_size * 100),
         batch_size=batch_size)
 
     # distill reader and teacher
