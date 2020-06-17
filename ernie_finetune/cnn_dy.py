@@ -51,8 +51,7 @@ def evaluate_student(model, test_reader):
     all_pred, all_label = [], []
     with D.base._switch_tracer_mode_guard_(is_train=False):
         model.eval()
-        for step, output in enumerate(test_reader()):
-            ids_student, labels, sentence = re_batch(output)
+        for step,(ids_student,labels,_) in enumerate(test_reader()):
             _, logits = model(ids_student)
             pred = L.argmax(logits, -1)
             all_pred.extend(pred.numpy())
@@ -123,7 +122,7 @@ def train_without_distill(train_reader, test_reader, word_dict):
     for epoch in range(EPOCH):
         for step, (ids_student, labels, sentence) in enumerate(train_reader()):
             #print(ids_student.shape, labels.shape,  sentence)
-            sys.exit(0)
+            #sys.exit(0)
             loss, _ = model(ids_student, labels=labels)
             loss.backward()
             if step % 10 == 0:
