@@ -24,7 +24,7 @@ import paddle_serving_client.io as serving_io
 
 # yapf: disable
 parser = argparse.ArgumentParser(__doc__)
-parser.add_argument("--num_epoch", type=int, default=1, help="Number of epoches for fine-tuning.")
+parser.add_argument("--num_epoch", type=int, default=10, help="Number of epoches for fine-tuning.")
 parser.add_argument("--use_gpu", type=ast.literal_eval, default=True, help="Whether use GPU for finetuning, input should be True or False")
 parser.add_argument("--learning_rate", type=float, default=5e-5, help="Learning rate used to train with warmup.")
 parser.add_argument("--weight_decay", type=float, default=0.01, help="Weight decay rate for L2 regularizer.")
@@ -107,9 +107,11 @@ if __name__ == '__main__':
         config=config,
         metrics_choices=metrics_choices)
 
+    """
     if args.checkpoint_dir:
         cls_task.load_checkpoint()
         cls_task.save_inference_model("cls_fintune_0")
+    """
 
     # Finetune and evaluate by PaddleHub's API
     # will finish training, evaluation, testing, save model automatically

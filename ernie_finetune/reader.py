@@ -1,6 +1,7 @@
 import codecs
 import os
 import csv
+import sys
 
 from paddlehub.dataset import InputExample
 from paddlehub.common.dir import DATA_HOME
@@ -82,9 +83,27 @@ class ChnSentiCorp(BaseNLPDataset):
                 for word in space_tokenizer(t[1]):
                     idx = word_dict[word]  if word in word_dict else word_dict['[UNK]']
                     s.append(idx)
+                #print(s, t[2], t[0])
+                #sys.exit(0)
                 yield s, t[2], t[0]
 
         return reader
+
+    """
+    def batch(reader, batch_size):
+        c0, c1, c2 = [], [], []
+        for rec in reader():
+            c0.append(rec[0])
+            c1.append(rec[1])
+            c2.append(rec[2])
+            if len(c0) == batch_size:
+                yield c0, c1, c2
+                c0, c1, c2 = [], [], []
+
+        if len(c0) > 0:
+            yield c0, c1, c2
+    """
+
 
 
 if __name__ == '__main__':

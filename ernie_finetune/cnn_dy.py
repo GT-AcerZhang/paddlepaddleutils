@@ -1,3 +1,4 @@
+: utf-8
 import sys
 import os
 
@@ -51,7 +52,7 @@ def evaluate_student(model, dataset):
     all_pred, all_label = [], []
     with D.base._switch_tracer_mode_guard_(is_train=False):
         model.eval()
-        for step, (ids_student, labels, ids) in enumerate(dataset.start()):
+        for step, (ids_student, labels, _) in enumerate(test_reader()):
             _, logits = model(ids_student)
             pred = L.argmax(logits, -1)
             all_pred.extend(pred.numpy())
@@ -69,7 +70,7 @@ class CNN(D.Layer):
         self.fc = D.Linear(128, 2)
     def forward(self, ids, labels=None):
         embbed = self.emb(ids)
-        print("ids shape:", ids.shape)
+        #print("ids shape:", ids.shape)
         #d_batch, d_seqlen = ids.shape
         hidden = embbed
         hidden = L.transpose(hidden, [0, 2, 1]) #change to NCWH
@@ -90,19 +91,31 @@ class CNN(D.Layer):
             loss = None
         return loss, logits
 
-def train_withput_distill(train_reader, test_reader, word_dict):
+def re_batch(batcher):
+    c0, c1, c2 = [], [], []
+    for r in batcher:
+        c0.append(r[0])
+        c1.append(r[1])
+        c2.append(r[2])
+    return c0, c1, c2
+
+def train_without_distill(train_reader, test_reader, word_dict):
     model = CNN(word_dict)
     g_clip = F.clip.GradientClipByGlobalNorm(1.0) #experimental
     opt = AdamW(learning_rate=LR, parameter_list=model.parameters(), weight_decay=0.01, grad_clip=g_clip)
     model.train()
     for epoch in range(EPOCH):
-        for step, (_,_,_,_,ids_student,label,logits_t) in enumerate(train_reader()):
+        for step, output in enumerate(train_reader()):
+            ids_student, label, sentence = re_batch(output)
+            #print(sentence)
+            #sys.exit(0)
             loss, _ = model(ids_student, labels=label)
             loss.backward()
             if step % 10 == 0:
                 print('[step %03d] distill train loss %.5f lr %.3e' % (step, loss.numpy(), opt.current_step_lr()))
             opt.minimize(loss)
             model.clear_gradients()
+            sys.exit(0)
         f1 = evaluate_student(model, test_reader)
         print('without distillation student f1 %.5f' % f1)
 
@@ -112,7 +125,8 @@ def train_with_distill(train_reader, test_reader, word_dict):
     opt = AdamW(learning_rate=LR, parameter_list=model.parameters(), weight_decay=0.01, grad_clip=g_clip)
     model.train()
     for epoch in range(EPOCH):
-        for step, (_,_,_,_,ids_student,label,logits_t) in enumerate(train_reader()):
+        for step, output in enumerate(train_reader()):
+            _,_,_,_,ids_student,label,logits_t = output
             _, logits_s = model(ids_student) # student 模型输出logits
             loss_ce, _ = model(ids_student, labels=label)
             loss_kd = KL(logits_s, logits_t)    # 由KL divergence度量两个分布的距离
@@ -130,12 +144,12 @@ def get_reader(train_reader, key_list):
     def reader():
         for r in train_reader():
             feed_dict = bert_reader.process(r[2])
-            #print(type(feed_dict))
-            #sys.exit(0)
             l = []
             for k in key_list:
                 l.append(feed_dict[k])
             l.extend([r[0], r[1]]) #ids_students, label
+            #for key in feed_dict:
+            #    print(key)
             yield l
 
     return reader
@@ -146,27 +160,27 @@ if __name__ == "__main__":
 
     ds = ChnSentiCorp()
     word_dict = ds.student_word_dict("./data/vocab.bow.txt")
+    batch_size=16
 
     # student train and dev
-    t_reader = ds.student_reader("./data/train.part.0", word_dict)
-    d_reader = ds.student_reader("./data/dev.part.0", word_dict)
+    rec_train_reader = ds.student_reader("./data/train.part.0", word_dict)
+    dev_reader = P.batch(ds.student_reader("./data/dev.part.0", word_dict), batch_size=batch_size)
+
+    batch_train_reader = P.batch(rec_train_reader, batch_size=batch_size)
+    train_without_distill(batch_train_reader, dev_reader, word_dict)
 
     feed_keys = ["input_ids", "position_ids", "segment_ids", "input_mask", "ids_student", "label"]
-    train_reader = P.batch(
+    distill_train_reader = P.batch(
         P.reader.shuffle(
-            get_reader(t_reader, feed_keys), buf_size=2500),
-        batch_size=16)
-
-    test_reader = P.batch(
-        d_reader, batch_size=16)
+        get_reader(rec_train_reader, feed_keys[:-2]), buf_size=batch_size * 10),
+        batch_size=batch_size)
 
     # distill reader and teacher
     dr = DistillReader(feed_keys, predicts=['pooled_output'])
-    dr.set_teacher_batch_size(16)
+    dr.set_teacher_batch_size(batch_size)
     dr.set_serving_conf_file("./ernie_senti_client/serving_client_conf.prototxt")
     if args.fixed_teacher:
         dr.set_fixed_teacher(args.fixed_teacher)
-    train_reader = dr.set_sample_list_generator(train_reader)
+    d_train_reader = dr.set_sample_list_generator(train_reader)
 
-    train_without_distill(train_reader, test_reader, word_dict)
-    train_with_distill(train_reader, test_reader, word_dict)
+    train_with_distill(d_train_reader, dev_reader, word_dict)
