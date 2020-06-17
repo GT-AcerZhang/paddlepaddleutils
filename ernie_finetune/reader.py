@@ -24,6 +24,10 @@ class ChnSentiCorp(BaseNLPDataset):
         self._word_dict = None
 
     def __read_file(self, input_file):
+        """
+        data file format:
+        origin sentence\tword segment sentence\tlabel
+        """
         with codecs.open(input_file, "r", encoding="UTF-8") as f:
             for line in f:
                 line = line.strip()
@@ -35,13 +39,17 @@ class ChnSentiCorp(BaseNLPDataset):
 
 
     def _read_file(self, input_file, phase=None):
+        """
+        [(seq_id,label,origin sentence)]
+        """
         seq_id = 0
         examples = []
         for t in self.__read_file(input_file):
             if len(t) == 2:
-                example = InputExample(
-                    guid=seq_id, label=t[1], text_a=t[0])
+                #example = InputExample(
+                #    guid=seq_id, label=t[1], text_a=t[0])
                 #print("t2", t[1])
+                assert len(t) !=2, "data format error:" + t
             elif len(t) == 3:
                 example = InputExample(
                     guid=seq_id, label=t[2], text_a=t[0])
@@ -54,6 +62,11 @@ class ChnSentiCorp(BaseNLPDataset):
         return examples
 
     def student_word_dict(self, vocab_file):
+        """
+        {
+            word->word_idx
+        }
+        """
         with codecs.open(vocab_file, "r", encoding="UTF-8") as f:
             self._word_dict = {i.strip(): l for l, i in enumerate(f.readlines())}
 
@@ -61,7 +74,7 @@ class ChnSentiCorp(BaseNLPDataset):
 
     def student_reader(self, input_file, word_dict):
         """
-        return [([seg_sentence_idxs], label, sentence), ()...]
+        return [([segment_sentence_idxs], label, sentence), ()...]
         """
         def reader():
             for t in self.__read_file(input_file):

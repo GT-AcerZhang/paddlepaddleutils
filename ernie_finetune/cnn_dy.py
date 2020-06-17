@@ -69,6 +69,7 @@ class CNN(D.Layer):
         self.fc = D.Linear(128, 2)
     def forward(self, ids, labels=None):
         embbed = self.emb(ids)
+        print("ids shape:", ids.shape)
         #d_batch, d_seqlen = ids.shape
         hidden = embbed
         hidden = L.transpose(hidden, [0, 2, 1]) #change to NCWH
@@ -109,7 +110,7 @@ def train(train_reader, test_reader, word_dict):
         print('student f1 %.5f' % f1)
 
 def get_reader(train_reader, key_list):
-    bert_reader = ChineseBertReader({'max_seq_len':128})
+    bert_reader = ChineseBertReader({'max_seq_len':512, "vocab_file":"./data/vocab.txt"})
     def reader():
         for r in train_reader():
             feed_dict = bert_reader.process(r[2])
@@ -118,7 +119,7 @@ def get_reader(train_reader, key_list):
             l = []
             for k in key_list:
                 l.append(feed_dict[k])
-            l.appendr.extend([r[0], r[1]])
+            l.extend([r[0], r[1]]) #ids_students, label
             yield l
 
     return reader
@@ -130,20 +131,22 @@ if __name__ == "__main__":
     ds = ChnSentiCorp()
     word_dict = ds.student_word_dict("./data/vocab.bow.txt")
 
+    # student train and dev
     t_reader = ds.student_reader("./data/train.part.0", word_dict)
     d_reader = ds.student_reader("./data/dev.part.0", word_dict)
 
     feed_keys = ["input_ids", "position_ids", "segment_ids", "input_mask", "ids_student", "label"]
     train_reader = P.batch(
         P.reader.shuffle(
-            get_reader(t_reader, feed_keys), buf_size=25000),
+            get_reader(t_reader, feed_keys), buf_size=2500),
         batch_size=16)
 
     test_reader = P.batch(
         d_reader, batch_size=16)
 
+    # distill reader and teacher
     dr = DistillReader(feed_keys, predicts=['pooled_output'])
-    dr.set_teacher_batch_size(2)
+    dr.set_teacher_batch_size(16)
     dr.set_serving_conf_file("./ernie_senti_client/serving_client_conf.prototxt")
     if args.fixed_teacher:
         dr.set_fixed_teacher(args.fixed_teacher)

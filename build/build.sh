@@ -24,6 +24,7 @@ else
   build_type=debug
 fi
 
+build_type=release
 
 if [[ $testing == 'None' ]]; then
   testing=y
