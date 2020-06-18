@@ -8,7 +8,7 @@ import paddle as P
 import paddle.fluid as F
 import paddle.fluid.layers as L
 import paddle.fluid.dygraph as D
-from reader import ChnSentiCorp
+from reader import ChnSentiCorp, pad_batch_data
 from paddle_edl.distill.distill_reader import DistillReader
 import re
 
@@ -42,6 +42,7 @@ class AdamW(F.optimizer.AdamOptimizer):
             #log.debug(L.reduce_mean(p))
 
 def KL(pred, target):
+    print("KL", pred.shape, target.shape)
     pred = L.log(L.softmax(pred))
     target = L.softmax(target)
     loss = L.kldiv_loss(pred, target)
@@ -74,6 +75,8 @@ class BOW(D.Layer):
         embbed = L.reduce_sum(embbed * pad_mask, 1)
         embbed = L.softsign(embbed)
         logits = self.fc(embbed)
+        print("embbed:", embbed.shape,
+              "pad_mask", pad_mak.shape)
 
         if labels is not None:
             if len(labels.shape)==1:
@@ -133,15 +136,20 @@ def train_without_distill(train_reader, test_reader, word_dict):
         print('without distillation student f1 %.5f' % f1)
 
 def train_with_distill(train_reader, test_reader, word_dict):
-    model = CNN(word_dict)
+    model = BOW(word_dict)
     g_clip = F.clip.GradientClipByGlobalNorm(1.0) #experimental
     opt = AdamW(learning_rate=LR, parameter_list=model.parameters(), weight_decay=0.01, grad_clip=g_clip)
     model.train()
     for epoch in range(EPOCH):
         for step, output in enumerate(train_reader()):
-            _,_,_,_,ids_student,label,logits_t = output
+            (_,_,_,_,ids_student,labels, logits_t) = output
+
+            ids_student = D.base.to_variable(pad_batch_data(ids_student, 'int64'))
+            labels = D.base.to_variable(np.array(labels).astype('int64'))
+            logits_t = D.base.to_variable(np.array(logits_t).astype('float32'))
+
             _, logits_s = model(ids_student) # student 模型输出logits
-            loss_ce, _ = model(ids_student, labels=label)
+            loss_ce, _ = model(ids_student, labels=labels)
             loss_kd = KL(logits_s, logits_t)    # 由KL divergence度量两个分布的距离
             loss = loss_ce + loss_kd
             loss.backward()
@@ -152,17 +160,29 @@ def train_with_distill(train_reader, test_reader, word_dict):
         f1 = evaluate_student(model, test_reader)
         print('wth distillation student f1 %.5f' % f1)
 
-def get_reader(train_reader, key_list):
+def ernie_reader(s_reader, key_list):
     bert_reader = ChineseBertReader({'max_seq_len':512, "vocab_file":"./data/vocab.txt"})
+
     def reader():
-        for r in train_reader():
-            feed_dict = bert_reader.process(r[2])
+        for (ids_student, labels, ss) in s_reader():
+            b = {}
+            for k in key_list:
+                b[k] = []
+
+            #print("ids_student batch_size:", len(ids_student), len(labels), len(ss))
+            for s in ss:
+                feed_dict = bert_reader.process(s)
+                for k in feed_dict:
+                    #print("reader process:", k, len(feed_dict[k])
+                    b[k].append(feed_dict[k])
+            b["ids_student"] = ids_student
+            b["labels"] = labels
+
             l = []
             for k in key_list:
-                l.append(feed_dict[k])
-            l.extend([r[0], r[1]]) #ids_students, label
-            #for key in feed_dict:
-            #    print(key)
+                l.append(b[k])
+
+            #print("ernie_reader batch_size:", len(l[0]))
             yield l
 
     return reader
@@ -179,14 +199,10 @@ if __name__ == "__main__":
     train_reader = ds.pad_batch_reader("./data/train.part.0", word_dict, batch_size=batch_size)
     dev_reader = ds.pad_batch_reader("./data/dev.part.0", word_dict, batch_size=batch_size)
 
-    train_without_distill(train_reader, dev_reader, word_dict)
-    sys.exit(0)
+    #train_without_distill(train_reader, dev_reader, word_dict)
+    #sys.exit(0)
 
-    feed_keys = ["input_ids", "position_ids", "segment_ids", "input_mask", "ids_student", "label"]
-    distill_train_reader = P.batch(
-        P.reader.shuffle(
-        get_reader(rec_train_reader, feed_keys[:-2]), buf_size=batch_size * 100),
-        batch_size=batch_size)
+    feed_keys = ["input_ids", "position_ids", "segment_ids", "input_mask", "ids_student", "labels"]
 
     # distill reader and teacher
     dr = DistillReader(feed_keys, predicts=['pooled_output'])
@@ -194,6 +210,8 @@ if __name__ == "__main__":
     dr.set_serving_conf_file("./ernie_senti_client/serving_client_conf.prototxt")
     if args.fixed_teacher:
         dr.set_fixed_teacher(args.fixed_teacher)
-    d_train_reader = dr.set_sample_list_generator(train_reader)
 
-    train_with_distill(d_train_reader, dev_reader, word_dict)
+    train_reader = ds.batch_reader("./data/train.part.0", word_dict, batch_size=batch_size)
+    dr_t = dr.set_batch_generator(ernie_reader(train_reader, feed_keys))
+
+    train_with_distill(dr_t, dev_reader, word_dict)
