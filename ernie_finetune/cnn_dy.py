@@ -21,7 +21,7 @@ parser = argparse.ArgumentParser(__doc__)
 parser.add_argument("--fixed_teacher", type=str, default=None, help="fixed teacher for debug local distill")
 args = parser.parse_args()
 
-EPOCH=10
+EPOCH=20
 LR=5e-5
 
 class AdamW(F.optimizer.AdamOptimizer):
@@ -155,9 +155,11 @@ def train_with_distill(train_reader, test_reader, word_dict, orig_reader, epoch_
             logits_t = D.base.to_variable(np.array(logits_t).astype('float32'))
 
             _, logits_s = model(ids_student) # student 模型输出logits
-            loss_ce, _ = model(ids_student, labels=labels)
-            loss_kd = KL(logits_s, logits_t)    # 由KL divergence度量两个分布的距离
-            loss = loss_ce + loss_kd
+            #loss_ce, _ = model(ids_student, labels=labels)
+            #loss_kd = KL(logits_s, logits_t)    # 由KL divergence度量两个分布的距离
+            #loss =  loss_ce +  loss_kd
+            loss = L.softmax_with_cross_entropy(logits_s, logits_t, soft_label=True)
+            loss = L.reduce_mean(loss)
             loss.backward()
             if step % 10 == 0:
                 print('[step %03d] distill train loss %.5f lr %.3e' % (step, loss.numpy(), opt.current_step_lr()))
