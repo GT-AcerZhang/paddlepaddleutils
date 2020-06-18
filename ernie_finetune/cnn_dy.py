@@ -75,8 +75,8 @@ class BOW(D.Layer):
         embbed = L.reduce_sum(embbed * pad_mask, 1)
         embbed = L.softsign(embbed)
         logits = self.fc(embbed)
-        print("embbed:", embbed.shape,
-              "pad_mask", pad_mak.shape)
+        #print("embbed:", embbed.shape,
+        #      "pad_mask", pad_mak.shape)
 
         if labels is not None:
             if len(labels.shape)==1:

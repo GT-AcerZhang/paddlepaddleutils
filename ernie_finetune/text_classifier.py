@@ -40,11 +40,11 @@ args = parser.parse_args()
 def save_model(inputs, output, program, logits):
     feed_keys = ["input_ids", "position_ids", "segment_ids", "input_mask"]
     feed_dict = dict(zip(feed_keys, [inputs[x] for x in feed_keys]))
-    #fetch_keys = ["pooled_output", "sequence_output"]
-    #fetch_dict = dict(zip(fetch_keys, [outputs[x] for x in fetch_keys]))
-    fetch_dict = {"logits":logits}
+    fetch_keys = ["pooled_output", "sequence_output"]
+    fetch_dict = dict(zip(fetch_keys, [outputs[x] for x in fetch_keys]))
+    #fetch_dict = {"logits":logits}
 
-    serving_io.save_model("ernie_senti_server", "ernie_senti_client", feed_dict, fetch_dict, program)
+    serving_io.save_model("ernie_senti_server", "ernie_senti_client", feed_dict, fetch_dict, main_program=program)
 
 if __name__ == '__main__':
 
@@ -62,7 +62,7 @@ if __name__ == '__main__':
     # metric should be acc, f1 or matthews
     #dataset = hub.dataset.ChnSentiCorp()
     dataset = ChnSentiCorp()
-    metrics_choices = ["acc"]
+    metrics_choices = ["f1"]
 
     # For ernie_tiny, it use sub-word to tokenize chinese sentence
     # If not ernie tiny, sp_model_path and word_dict_path should be set None
@@ -113,6 +113,7 @@ if __name__ == '__main__':
         config=config,
         metrics_choices=metrics_choices)
 
+    logits=None
     with cls_task.phase_guard('train'):
         #for l in cls_task.outputs:
         #    print("cls_task outputs:", l)
@@ -120,11 +121,8 @@ if __name__ == '__main__':
 
     #program_to_code(program)
 
-    """
     if args.checkpoint_dir:
         cls_task.load_checkpoint()
-        cls_task.save_inference_model("cls_fintune_0")
-    """
 
     # Finetune and evaluate by PaddleHub's API
     # will finish training, evaluation, testing, save model automatically
