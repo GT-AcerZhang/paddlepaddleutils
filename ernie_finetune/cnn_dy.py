@@ -121,7 +121,7 @@ class CNN(D.Layer):
 def train_without_distill(train_reader, test_reader, word_dict, epoch_num=EPOCH):
     model = CNN(word_dict)
     g_clip = F.clip.GradientClipByGlobalNorm(1.0) #experimental
-    opt = AdamW(learning_rate=LR, parameter_list=model.parameters(), weight_decay=0.01, grad_clip=g_clip)
+    opt = F.optimizer.Adam(learning_rate=LR, parameter_list=model.parameters(), grad_clip=g_clip)
     model.train()
     for epoch in range(epoch_num):
         for step, (ids_student, labels, sentence) in enumerate(train_reader()):
@@ -141,7 +141,7 @@ def train_without_distill(train_reader, test_reader, word_dict, epoch_num=EPOCH)
 def train_with_distill(train_reader, test_reader, word_dict, orig_reader, epoch_num=EPOCH):
     model = CNN(word_dict)
     g_clip = F.clip.GradientClipByGlobalNorm(1.0) #experimental
-    opt = AdamW(learning_rate=LR, parameter_list=model.parameters(), weight_decay=0.01, grad_clip=g_clip)
+    opt = F.optimizer.Adam(learning_rate=LR, parameter_list=model.parameters(), grad_clip=g_clip)
     model.train()
     for epoch in range(epoch_num):
         for step, output in enumerate(train_reader()):
@@ -166,19 +166,19 @@ def train_with_distill(train_reader, test_reader, word_dict, orig_reader, epoch_
             opt.minimize(loss)
             model.clear_gradients()
         f1,acc = evaluate_student(model, test_reader)
-        print('with distillation student f1 %.5f acc %.5f' % (f1, acc))
+        print('teacher:with distillation student f1 %.5f acc %.5f' % (f1, acc))
 
-    # 最后再加一轮hard label训练巩固结果
-    for step, (ids_student, labels, sentence) in enumerate(orig_reader()):
-        loss, _ = model(ids_student, labels=labels)
-        loss.backward()
-        if step % 10 == 0:
-            print('[step %03d] train loss %.5f lr %.3e' % (step, loss.numpy(), opt.current_step_lr()))
-        opt.minimize(loss)
-        model.clear_gradients()
+        # 最后再加一轮hard label训练巩固结果
+        for step, (ids_student, labels, sentence) in enumerate(orig_reader()):
+            loss, _ = model(ids_student, labels=labels)
+            loss.backward()
+            if step % 10 == 0:
+                print('[step %03d] train loss %.5f lr %.3e' % (step, loss.numpy(), opt.current_step_lr()))
+            opt.minimize(loss)
+            model.clear_gradients()
 
-    f1,acc = evaluate_student(model, test_reader)
-    print('with distillation student f1 %.5f acc %.5f' % (f1, acc))
+        f1,acc = evaluate_student(model, test_reader)
+        print('hard:with distillation student f1 %.5f acc %.5f' % (f1, acc))
 
 def ernie_reader(s_reader, key_list):
     bert_reader = ChineseBertReader({'max_seq_len':512, "vocab_file":"./data/vocab.txt"})
@@ -233,4 +233,4 @@ if __name__ == "__main__":
     dr_train_reader = ds.batch_reader("./data/train.part.0", word_dict, batch_size=batch_size)
     dr_t = dr.set_batch_generator(ernie_reader(dr_train_reader, feed_keys))
 
-    train_with_distill(dr_t, dev_reader, word_dict, train_reader, epoch_num=10)
+    train_with_distill(dr_t, dev_reader, word_dict, train_reader)
