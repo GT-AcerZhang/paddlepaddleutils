@@ -136,7 +136,7 @@ def train_without_distill(train_reader, test_reader, word_dict, epoch_num=EPOCH)
         #f1 = evaluate_student(model, test_reader)
         #print('without distillation student f1 %.5f' % f1)
         f1,acc = evaluate_student(model, test_reader)
-        print('wth distillation student f1 %.5f acc %.5f' % (f1, acc))
+        print('without distillation student f1 %.5f acc %.5f' % (f1, acc))
 
 def train_with_distill(train_reader, test_reader, word_dict, orig_reader, epoch_num=EPOCH):
     model = CNN(word_dict)
@@ -164,7 +164,7 @@ def train_with_distill(train_reader, test_reader, word_dict, orig_reader, epoch_
             opt.minimize(loss)
             model.clear_gradients()
         f1,acc = evaluate_student(model, test_reader)
-        print('wth distillation student f1 %.5f acc %.5f' % (f1, acc))
+        print('with distillation student f1 %.5f acc %.5f' % (f1, acc))
 
     # 最后再加一轮hard label训练巩固结果
     for step, (ids_student, labels, sentence) in enumerate(orig_reader()):
@@ -174,6 +174,9 @@ def train_with_distill(train_reader, test_reader, word_dict, orig_reader, epoch_
             print('[step %03d] train loss %.5f lr %.3e' % (step, loss.numpy(), opt.current_step_lr()))
         opt.minimize(loss)
         model.clear_gradients()
+
+    f1,acc = evaluate_student(model, test_reader)
+    print('with distillation student f1 %.5f acc %.5f' % (f1, acc))
 
 def ernie_reader(s_reader, key_list):
     bert_reader = ChineseBertReader({'max_seq_len':512, "vocab_file":"./data/vocab.txt"})
