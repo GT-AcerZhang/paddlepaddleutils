@@ -3,7 +3,7 @@ import os
 
 import numpy as np
 import argparse
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, accuracy_score
 import paddle as P
 import paddle.fluid as F
 import paddle.fluid.layers as L
@@ -42,7 +42,7 @@ class AdamW(F.optimizer.AdamOptimizer):
             #log.debug(L.reduce_mean(p))
 
 def KL(pred, target):
-    print("KL", pred.shape, target.shape)
+    #print("KL", pred.shape, target.shape)
     pred = L.log(L.softmax(pred))
     target = L.softmax(target)
     loss = L.kldiv_loss(pred, target)
@@ -58,8 +58,9 @@ def evaluate_student(model, test_reader):
             all_pred.extend(pred.numpy())
             all_label.extend(labels.numpy())
         f1 = f1_score(all_label, all_pred, average='macro')
+        acc = accuracy_score(all_label, all_pred)
         model.train()
-        return f1 
+        return f1, acc
 
 
 class BOW(D.Layer):
@@ -117,12 +118,12 @@ class CNN(D.Layer):
             loss = None
         return loss, logits
 
-def train_without_distill(train_reader, test_reader, word_dict):
-    model = BOW(word_dict)
+def train_without_distill(train_reader, test_reader, word_dict, epoch_num=EPOCH):
+    model = CNN(word_dict)
     g_clip = F.clip.GradientClipByGlobalNorm(1.0) #experimental
     opt = AdamW(learning_rate=LR, parameter_list=model.parameters(), weight_decay=0.01, grad_clip=g_clip)
     model.train()
-    for epoch in range(EPOCH):
+    for epoch in range(epoch_num):
         for step, (ids_student, labels, sentence) in enumerate(train_reader()):
             #print(ids_student.shape, labels.shape,  sentence)
             #sys.exit(0)
@@ -132,17 +133,22 @@ def train_without_distill(train_reader, test_reader, word_dict):
                 print('[step %03d] distill train loss %.5f lr %.3e' % (step, loss.numpy(), opt.current_step_lr()))
             opt.minimize(loss)
             model.clear_gradients()
-        f1 = evaluate_student(model, test_reader)
-        print('without distillation student f1 %.5f' % f1)
+        #f1 = evaluate_student(model, test_reader)
+        #print('without distillation student f1 %.5f' % f1)
+        f1,acc = evaluate_student(model, test_reader)
+        print('wth distillation student f1 %.5f acc %.5f' % (f1, acc))
 
-def train_with_distill(train_reader, test_reader, word_dict):
-    model = BOW(word_dict)
+def train_with_distill(train_reader, test_reader, word_dict, orig_reader, epoch_num=EPOCH):
+    model = CNN(word_dict)
     g_clip = F.clip.GradientClipByGlobalNorm(1.0) #experimental
     opt = AdamW(learning_rate=LR, parameter_list=model.parameters(), weight_decay=0.01, grad_clip=g_clip)
     model.train()
-    for epoch in range(EPOCH):
+    for epoch in range(epoch_num):
         for step, output in enumerate(train_reader()):
-            (_,_,_,_,ids_student,labels, logits_t) = output
+            (_,_,_,_,ids_student,labels,logits_t) = output
+
+            #pooled_output = D.base.to_variable(np.array(pooled_output)).astype('float32')
+            #print(pooled_output.shape, logits_t.shape)
 
             ids_student = D.base.to_variable(pad_batch_data(ids_student, 'int64'))
             labels = D.base.to_variable(np.array(labels).astype('int64'))
@@ -157,8 +163,17 @@ def train_with_distill(train_reader, test_reader, word_dict):
                 print('[step %03d] distill train loss %.5f lr %.3e' % (step, loss.numpy(), opt.current_step_lr()))
             opt.minimize(loss)
             model.clear_gradients()
-        f1 = evaluate_student(model, test_reader)
-        print('wth distillation student f1 %.5f' % f1)
+        f1,acc = evaluate_student(model, test_reader)
+        print('wth distillation student f1 %.5f acc %.5f' % (f1, acc))
+
+    # 最后再加一轮hard label训练巩固结果
+    for step, (ids_student, labels, sentence) in enumerate(orig_reader()):
+        loss, _ = model(ids_student, labels=labels)
+        loss.backward()
+        if step % 10 == 0:
+            print('[step %03d] train loss %.5f lr %.3e' % (step, loss.numpy(), opt.current_step_lr()))
+        opt.minimize(loss)
+        model.clear_gradients()
 
 def ernie_reader(s_reader, key_list):
     bert_reader = ChineseBertReader({'max_seq_len':512, "vocab_file":"./data/vocab.txt"})
@@ -199,19 +214,18 @@ if __name__ == "__main__":
     train_reader = ds.pad_batch_reader("./data/train.part.0", word_dict, batch_size=batch_size)
     dev_reader = ds.pad_batch_reader("./data/dev.part.0", word_dict, batch_size=batch_size)
 
-    #train_without_distill(train_reader, dev_reader, word_dict)
-    #sys.exit(0)
+    train_without_distill(train_reader, dev_reader, word_dict)
 
     feed_keys = ["input_ids", "position_ids", "segment_ids", "input_mask", "ids_student", "labels"]
 
     # distill reader and teacher
-    dr = DistillReader(feed_keys, predicts=['pooled_output'])
+    dr = DistillReader(feed_keys, predicts=['logits'])
     dr.set_teacher_batch_size(batch_size)
     dr.set_serving_conf_file("./ernie_senti_client/serving_client_conf.prototxt")
     if args.fixed_teacher:
         dr.set_fixed_teacher(args.fixed_teacher)
 
-    train_reader = ds.batch_reader("./data/train.part.0", word_dict, batch_size=batch_size)
-    dr_t = dr.set_batch_generator(ernie_reader(train_reader, feed_keys))
+    dr_train_reader = ds.batch_reader("./data/train.part.0", word_dict, batch_size=batch_size)
+    dr_t = dr.set_batch_generator(ernie_reader(dr_train_reader, feed_keys))
 
-    train_with_distill(dr_t, dev_reader, word_dict)
+    train_with_distill(dr_t, dev_reader, word_dict, train_reader, epoch_num=10)

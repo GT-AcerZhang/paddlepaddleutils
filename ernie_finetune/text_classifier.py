@@ -40,10 +40,11 @@ args = parser.parse_args()
 def save_model(inputs, output, program, logits):
     feed_keys = ["input_ids", "position_ids", "segment_ids", "input_mask"]
     feed_dict = dict(zip(feed_keys, [inputs[x] for x in feed_keys]))
-    #fetch_keys = ["pooled_output", "sequence_output"]
-    #fetch_dict = dict(zip(fetch_keys, [outputs[x] for x in fetch_keys]))
-    #fetch_dict = {"logits":logits}
-    fetch_dict={"pooled_output":outputs["pooled_output"], "logits":logits}
+    fetch_keys = ["pooled_output", "sequence_output"]
+    fetch_dict = dict(zip(fetch_keys, [outputs[x] for x in fetch_keys]))
+    fetch_dict["logits"]=logits
+    print(logits)
+    #fetch_dict={"pooled_output":outputs["pooled_output"], "logits":logits}
     #print(feed_dict)
 
     serving_io.save_model("ernie_senti_server", "ernie_senti_client", feed_dict, fetch_dict, main_program=program)
@@ -116,12 +117,13 @@ if __name__ == '__main__':
         metrics_choices=metrics_choices)
 
     logits=None
+    program = None
     with cls_task.phase_guard('train'):
         #for l in cls_task.outputs:
         #    print("cls_task outputs:", l)
         logits = cls_task.outputs[0]
-
-    #program_to_code(program)
+        program = cls_task.main_program
+        #program_to_code(program)
 
     if args.checkpoint_dir:
         cls_task.load_checkpoint()
