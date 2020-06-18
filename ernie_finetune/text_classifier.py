@@ -25,7 +25,7 @@ import paddle_serving_client.io as serving_io
 
 # yapf: disable
 parser = argparse.ArgumentParser(__doc__)
-parser.add_argument("--num_epoch", type=int, default=1, help="Number of epoches for fine-tuning.")
+parser.add_argument("--num_epoch", type=int, default=5, help="Number of epoches for fine-tuning.")
 parser.add_argument("--use_gpu", type=ast.literal_eval, default=True, help="Whether use GPU for finetuning, input should be True or False")
 parser.add_argument("--learning_rate", type=float, default=5e-5, help="Learning rate used to train with warmup.")
 parser.add_argument("--weight_decay", type=float, default=0.01, help="Weight decay rate for L2 regularizer.")
@@ -40,9 +40,11 @@ args = parser.parse_args()
 def save_model(inputs, output, program, logits):
     feed_keys = ["input_ids", "position_ids", "segment_ids", "input_mask"]
     feed_dict = dict(zip(feed_keys, [inputs[x] for x in feed_keys]))
-    fetch_keys = ["pooled_output", "sequence_output"]
-    fetch_dict = dict(zip(fetch_keys, [outputs[x] for x in fetch_keys]))
+    #fetch_keys = ["pooled_output", "sequence_output"]
+    #fetch_dict = dict(zip(fetch_keys, [outputs[x] for x in fetch_keys]))
     #fetch_dict = {"logits":logits}
+    fetch_dict={"pooled_output":outputs["pooled_output"], "logits":logits}
+    #print(feed_dict)
 
     serving_io.save_model("ernie_senti_server", "ernie_senti_client", feed_dict, fetch_dict, main_program=program)
 
@@ -62,7 +64,7 @@ if __name__ == '__main__':
     # metric should be acc, f1 or matthews
     #dataset = hub.dataset.ChnSentiCorp()
     dataset = ChnSentiCorp()
-    metrics_choices = ["f1"]
+    metrics_choices = ["f1", "acc"]
 
     # For ernie_tiny, it use sub-word to tokenize chinese sentence
     # If not ernie tiny, sp_model_path and word_dict_path should be set None
