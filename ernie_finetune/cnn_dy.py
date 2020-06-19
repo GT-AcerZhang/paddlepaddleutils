@@ -163,7 +163,7 @@ def train_with_distill(train_reader, test_reader, word_dict, orig_reader, epoch_
             #loss_kd = KL(logits_s, logits_t)    # 由KL divergence度量两个分布的距离
             #loss =  loss_ce +  loss_kd
             #p = L.softmax(logits_t/2.0)
-            loss = s_weight/100.0 * loss_ce +  (1.0 - s_weight/100.0) * L.softmax_with_cross_entropy(logits_s, logits_t, soft_label=True)
+            loss = args.s_weight/100.0 * loss_ce +  (1.0 - args.s_weight/100.0) * L.softmax_with_cross_entropy(logits_s, logits_t, soft_label=True)
             #loss = L.softmax_with_cross_entropy(logits_s, logits_t, soft_label=True)
             loss = L.reduce_mean(loss)
             loss.backward()
