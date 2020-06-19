@@ -19,9 +19,11 @@ from paddle_serving_app.reader import ChineseBertReader
 
 parser = argparse.ArgumentParser(__doc__)
 parser.add_argument("--fixed_teacher", type=str, default=None, help="fixed teacher for debug local distill")
+parser.add_argument("--s_weight", type=float,  help="weight of student in loss")
 args = parser.parse_args()
+print("args:", args)
 
-EPOCH=20
+EPOCH=10
 LR=5e-5
 
 class AdamW(F.optimizer.AdamOptimizer):
@@ -113,7 +115,7 @@ class CNN(D.Layer):
             if len(labels.shape)==1:
                 labels = L.reshape(labels, [-1, 1])
             loss = L.softmax_with_cross_entropy(logits, labels)
-            loss = L.reduce_mean(loss)
+            #loss = L.reduce_mean(loss)
         else:
             loss = None
         return loss, logits
@@ -121,7 +123,8 @@ class CNN(D.Layer):
 def train_without_distill(train_reader, test_reader, word_dict, epoch_num=EPOCH):
     model = CNN(word_dict)
     g_clip = F.clip.GradientClipByGlobalNorm(1.0) #experimental
-    opt = F.optimizer.Adam(learning_rate=LR, parameter_list=model.parameters(), grad_clip=g_clip)
+    #opt = F.optimizer.Adam(learning_rate=LR, parameter_list=model.parameters(), grad_clip=g_clip)
+    opt = AdamW(learning_rate=LR, parameter_list=model.parameters(), weight_decay=0.01, grad_clip=g_clip)
     model.train()
     for epoch in range(epoch_num):
         for step, (ids_student, labels, sentence) in enumerate(train_reader()):
@@ -141,7 +144,8 @@ def train_without_distill(train_reader, test_reader, word_dict, epoch_num=EPOCH)
 def train_with_distill(train_reader, test_reader, word_dict, orig_reader, epoch_num=EPOCH):
     model = CNN(word_dict)
     g_clip = F.clip.GradientClipByGlobalNorm(1.0) #experimental
-    opt = F.optimizer.Adam(learning_rate=LR, parameter_list=model.parameters(), grad_clip=g_clip)
+    #opt = F.optimizer.Adam(learning_rate=LR, parameter_list=model.parameters(), grad_clip=g_clip)
+    opt = AdamW(learning_rate=LR, parameter_list=model.parameters(), weight_decay=0.01, grad_clip=g_clip)
     model.train()
     for epoch in range(epoch_num):
         for step, output in enumerate(train_reader()):
@@ -155,10 +159,12 @@ def train_with_distill(train_reader, test_reader, word_dict, orig_reader, epoch_
             logits_t = D.base.to_variable(np.array(logits_t).astype('float32'))
 
             _, logits_s = model(ids_student) # student 模型输出logits
-            #loss_ce, _ = model(ids_student, labels=labels)
+            loss_ce, _ = model(ids_student, labels=labels)
             #loss_kd = KL(logits_s, logits_t)    # 由KL divergence度量两个分布的距离
             #loss =  loss_ce +  loss_kd
-            loss = L.softmax_with_cross_entropy(logits_s, logits_t, soft_label=True)
+            #p = L.softmax(logits_t/2.0)
+            loss = s_weight/100.0 * loss_ce +  (1.0 - s_weight/100.0) * L.softmax_with_cross_entropy(logits_s, logits_t, soft_label=True)
+            #loss = L.softmax_with_cross_entropy(logits_s, logits_t, soft_label=True)
             loss = L.reduce_mean(loss)
             loss.backward()
             if step % 10 == 0:
@@ -168,9 +174,11 @@ def train_with_distill(train_reader, test_reader, word_dict, orig_reader, epoch_
         f1,acc = evaluate_student(model, test_reader)
         print('teacher:with distillation student f1 %.5f acc %.5f' % (f1, acc))
 
+        """
         # 最后再加一轮hard label训练巩固结果
         for step, (ids_student, labels, sentence) in enumerate(orig_reader()):
             loss, _ = model(ids_student, labels=labels)
+            loss = L.reduce_mean(loss)
             loss.backward()
             if step % 10 == 0:
                 print('[step %03d] train loss %.5f lr %.3e' % (step, loss.numpy(), opt.current_step_lr()))
@@ -179,6 +187,7 @@ def train_with_distill(train_reader, test_reader, word_dict, orig_reader, epoch_
 
         f1,acc = evaluate_student(model, test_reader)
         print('hard:with distillation student f1 %.5f acc %.5f' % (f1, acc))
+        """
 
 def ernie_reader(s_reader, key_list):
     bert_reader = ChineseBertReader({'max_seq_len':512, "vocab_file":"./data/vocab.txt"})
@@ -219,7 +228,7 @@ if __name__ == "__main__":
     train_reader = ds.pad_batch_reader("./data/train.part.0", word_dict, batch_size=batch_size)
     dev_reader = ds.pad_batch_reader("./data/dev.part.0", word_dict, batch_size=batch_size)
 
-    train_without_distill(train_reader, dev_reader, word_dict)
+    #train_without_distill(train_reader, dev_reader, word_dict)
 
     feed_keys = ["input_ids", "position_ids", "segment_ids", "input_mask", "ids_student", "labels"]
 

@@ -108,7 +108,7 @@ class ChnSentiCorp(BaseNLPDataset):
         def reader():
             s_reader = P.reader.shuffle(
                 self.student_reader(input_file, word_dict), 
-                    buf_size=batch_size * 100)
+                    buf_size=10000)
 
             b=[[],[],[]]
             for rec in s_reader():
