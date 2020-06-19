@@ -20,6 +20,7 @@ from paddle_serving_app.reader import ChineseBertReader
 parser = argparse.ArgumentParser(__doc__)
 parser.add_argument("--fixed_teacher", type=str, default=None, help="fixed teacher for debug local distill")
 parser.add_argument("--s_weight", type=float,  help="weight of student in loss")
+parser.add_argument("--T", type=float, default=None,  help="weight of student in loss")
 args = parser.parse_args()
 print("args:", args)
 
@@ -162,8 +163,12 @@ def train_with_distill(train_reader, test_reader, word_dict, orig_reader, epoch_
             loss_ce, _ = model(ids_student, labels=labels)
             #loss_kd = KL(logits_s, logits_t)    # 由KL divergence度量两个分布的距离
             #loss =  loss_ce +  loss_kd
-            #p = L.softmax(logits_t/2.0)
-            loss = args.s_weight/100.0 * loss_ce +  (1.0 - args.s_weight/100.0) * L.softmax_with_cross_entropy(logits_s, logits_t, soft_label=True)
+            if args.T is None:
+                loss = args.s_weight/100.0 * loss_ce +  (1.0 - args.s_weight/100.0) * L.softmax_with_cross_entropy(logits_s, logits_t, soft_label=True)
+            else:
+                Tf = args.T/10.0
+                p = L.softmax(logits_t/Tf)
+                loss = args.s_weight/100.0 * loss_ce +  (1.0 - args.s_weight/100.0) * Tf * Tf * L.softmax_with_cross_entropy(logits_s/Tf, p, soft_label=True)
             #loss = L.softmax_with_cross_entropy(logits_s, logits_t, soft_label=True)
             loss = L.reduce_mean(loss)
             loss.backward()
