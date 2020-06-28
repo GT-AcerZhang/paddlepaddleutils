@@ -17,10 +17,21 @@ import sys
 from paddle_serving_client import Client
 from paddle_serving_app.reader import ChineseBertReader
 
+def str2bool(v):
+    if isinstance(v, bool):
+       return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 parser = argparse.ArgumentParser(__doc__)
 parser.add_argument("--fixed_teacher", type=str, default=None, help="fixed teacher for debug local distill")
 parser.add_argument("--s_weight", type=float,  help="weight of student in loss")
 parser.add_argument("--T", type=float, default=None,  help="weight of student in loss")
+parser.add_argument("--without_distill", action='store_true')
 args = parser.parse_args()
 print("args:", args)
 

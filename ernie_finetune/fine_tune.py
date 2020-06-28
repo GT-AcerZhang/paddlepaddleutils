@@ -76,7 +76,7 @@ def fine_tune():
         vocab_path=module.get_vocab_path(),
         sp_model_path=module.get_spm_path(),
         word_dict_path=module.get_word_dict_path(),
-        max_seq_len=128)
+        max_seq_len=256)
 
     # finetune策略1
     strategy = hub.L2SPFinetuneStrategy(
@@ -94,7 +94,7 @@ def fine_tune():
 
     # Finetune Task
     inputs, outputs, program = module.context(
-        trainable=True, max_seq_len=128)
+        trainable=True, max_seq_len=256)
 
     # Use "pooled_output" for classification tasks on an entire sentence.
     pooled_output = outputs["pooled_output"]
