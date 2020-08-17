@@ -33,6 +33,7 @@ gwb_path="https://raw.githubusercontent.com/gongweibao/Paddle/v1.8.2.1"
 wget ${gwb_path}/python/paddle/fluid/tests/unittests/test_dataloader_auto_checkpoint.py -O python/paddle/fluid/tests/unittests/test_dataloader_auto_checkpoint.py
 wget ${gwb_path}/python/paddle/fluid/tests/unittests/test_dataloader_auto_checkpoint2.py -O python/paddle/fluid/tests/unittests/test_dataloader_auto_checkpoint2.py
 wget ${gwb_path}/python/paddle/fluid/incubate/checkpoint/dataloader_auto_checkpoint.py -O python/paddle/fluid/incubate/checkpoint/dataloader_auto_checkpoint.py
+wget ${gwb_path}/python/paddle/fluid/incubate/checkpoint/test_checkpoint_saver.py.py -O python/paddle/fluid/incubate/checkpoint/test_checkpoint_saver.py
 wget ${gwb_path}/python/paddle/fluid/tests/unittests/auto_checkpoint_utils.py -O python/paddle/fluid/tests/unittests/auto_checkpoint_utils.py
 
 # hdfs

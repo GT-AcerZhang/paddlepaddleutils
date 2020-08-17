@@ -26,30 +26,28 @@ RUN cd /root && \
             --enable-luainterp=yes \
 	    --enable-python3interp=yes  \
             --enable-gui=gtk2 --enable-cscope --prefix=/usr && \
-    make -j 8 && make install
+    make -j && make install
             
 RUN cd /root && \
     wget --quiet https://raw.githubusercontent.com/gongweibao/paddlepaddleutils/develop/build/.vimrc && \
     git clone https://github.com/VundleVim/Vundle.vim.git .vim/bundle/Vundle.vim
 
-#RUN cd /root && \
-#    git clone https://github.com/Valloric/YouCompleteMe.git .vim/bundle/YouCompleteMe && \
-#    cd .vim/bundle/YouCompleteMe && \
-#    git checkout 7ba7eef && \
-#    git submodule update --init --recursive && \
-#    ./install.py --gocode-completer --clang-completer
+ENV GOROOT=/usr/local/go GOPATH=/root/go
+ENV PATH=$PATH:${GOROOT}/bin
+RUN cd /root && \
+    git clone https://github.com/Valloric/YouCompleteMe.git .vim/bundle/YouCompleteMe && \
+    cd .vim/bundle/YouCompleteMe && \
+    git submodule update --init --recursive && \
+    ./install.py --gocode-completer --clang-completer
     
 #RUN vim +PluginInstall +qall
 #RUN vim +GoInstallBinaries +qall
 
 RUN python -m pip install paddlepaddle-gpu
-RUN python3.6 -m pip install paddlepaddle-gpu
+RUN python3.6 -m pip install paddlepaddle-gpu sklearn paddlehub
 
 RUN echo "alias vi=vim" >> /root/.bashrc
-RUN echo "export GOROOT=/usr/local/go" >> /root/.bashrc
-RUN echo "export GOPATH=/root/go" >> /root/.bashrc
-RUN echo "export PATH=${PATH}:${GOPATH}/bin" >> /root/.bashrc
-RUN echo "export LD_LIBRARY_PATH=/root/go/soft/cuda10-cudnn7.6.5.32/lib64:$LD_LIBRARY_PATH:/usr/lib64/:/usr/local/lib/:${LD_LIBRARY_PATH} >> /root/.bashrc"
+ENV LD_LIBRARY_PATH=/root/go/soft/cuda10-cudnn7.6.5.32/lib64:${LD_LIBRARY_PATH}:/usr/lib64/:/usr/local/lib/
 
 RUN git config --global user.email "weibao.gong@gmail.com" && \
     git config --global user.name "gongweibao"

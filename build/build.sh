@@ -8,6 +8,8 @@ rpc=grpc
 testing=None
 os=ubuntu
 py_v=2.7
+PADDLE_ROOT=/paddle
+
 
 if grep --quiet "Ubuntu" /etc/issue; then
   os=ubuntu
@@ -16,7 +18,7 @@ elif grep --quiet "CentOS" /etc/issue; then
   os=cent
   build_type=release
   if [[ $testing == 'None' ]]; then
-      testing=n
+      testing=y
   fi
 else
   echo "Unrecognized OS, use ubuntu config"
@@ -91,9 +93,27 @@ esac
 
 case "$os" in
     cent) 
-        export LD_LIBRARY_PATH=/opt/_internal/cpython-2.7.11-ucs4/lib:${LD_LIBRARY_PATH#/opt/_internal/cpython-2.7.11-ucs2/lib:}
-        export PATH=/opt/python/cp27-cp27mu/bin/:${PATH}
-        PYTHON_FLAGS="-DPYTHON_EXECUTABLE:FILEPATH=/opt/python/cp27-cp27mu/bin/python"
+        if [[ $py_v == "2.7" ]]; then
+            export LD_LIBRARY_PATH=/opt/_internal/cpython-2.7.11-ucs4/lib:${LD_LIBRARY_PATH#/opt/_internal/cpython-2.7.11-ucs2/lib:}
+            export PATH=/opt/python/cp27-cp27mu/bin/:${PATH}
+            PYTHON_FLAGS="-DPYTHON_EXECUTABLE:FILEPATH=/opt/python/cp27-cp27mu/bin/python"
+            pip install -r ${PADDLE_ROOT}/python/requirements.txt
+        elif [[ $py_v == "3.5.1" ]]; then
+		    export LD_LIBRARY_PATH=/opt/_internal/cpython-3.5.1/lib/:${LD_LIBRARY_PATH}
+            export PATH=/opt/_internal/cpython-3.5.1/bin/:${PATH}
+            export PYTHON_FLAGS="-DPYTHON_EXECUTABLE:FILEPATH=/opt/_internal/cpython-3.5.1/bin/python3 -DPYTHON_INCLUDE_DIR:PATH=/opt/_internal/cpython-3.5.1/include/python3.5m -DPYTHON_LIBRARIES:FILEPATH=/opt/_internal/cpython-3.5.1/lib/libpython3.so"
+        elif [[ $py_v == "3.6.0" ]]; then
+            export LD_LIBRARY_PATH=/opt/_internal/cpython-3.6.0/lib/:${LD_LIBRARY_PATH}
+            export PATH=/opt/_internal/cpython-3.6.0/bin/:${PATH}
+            export PYTHON_FLAGS="-DPYTHON_EXECUTABLE:FILEPATH=/opt/_internal/cpython-3.6.0/bin/python3 -DPYTHON_INCLUDE_DIR:PATH=/opt/_internal/cpython-3.6.0/include/python3.6m -DPYTHON_LIBRARIES:FILEPATH=/opt/_internal/cpython-3.6.0/lib/libpython3.so"
+        elif [[ $py_v == "3.7.0" ]]; then
+		    export LD_LIBRARY_PATH=/opt/_internal/cpython-3.7.0/lib/:${LD_LIBRARY_PATH}
+            export PATH=/opt/_internal/cpython-3.7.0/bin/:${PATH}
+            export PYTHON_FLAGS="-DPYTHON_EXECUTABLE:FILEPATH=/opt/_internal/cpython-3.7.0/bin/python3.7 -DPYTHON_INCLUDE_DIR:PATH=/opt/_internal/cpython-3.7.0/include/python3.7m -DPYTHON_LIBRARIES:FILEPATH=/opt/_internal/cpython-3.7.0/lib/libpython3.so"
+	    else
+            echo "can't find the ${py_v} support"
+            exit 1
+	    fi
         ;;
     ubuntu) ;;
     *) echo "not support ${os}" ; exit 1 ;;
@@ -102,30 +122,39 @@ esac
 build_dir=build_${os}_${branch}_${build_type}_${place}_${testing}_${rpc}_${py_v}
 mkdir -p  ${build_dir}
 cd ${build_dir}
-third_party_dir=${os}_${build_type}_${place}_${py_v}
+third_party_dir=${os}_${branch}_${build_type}_${place}_${py_v}
 
 set -x
-cmake ../../  -DTHIRD_PARTY_PATH=/paddle/build/third_party/${third_party_dir}/ \
-         -DWITH_MKLML=ON \
-         -DWITH_MKLDNN=ON \
-         -DWITH_GPU=${WITH_GPU:-ON} \
-         -DWITH_C_API=OFF \
-         -DWITH_DISTRIBUTE=ON \
-         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-RelWithDebInfo} \
-         -DWITH_TESTING=${WITH_TESTING:-ON} \
-         -DWITH_STYLE_CHECK=OFF \
-         -DWITH_CONTRIB=OFF \
-         -DWITH_GRPC=${WITH_GRPC:-ON} \
-         -DWITH_BRPC_RDMA=${WITH_BRPC_RDMA:-OFF} \
-         -DWITH_FLUID_ONLY=ON \
-         -DWITH_INFERENCE_API_TEST=OFF \
-         -DCMAKE_INSTALL_PREFIX=/root/paddlebuild/${third_party_dir}/install \
-         -DWITH_DOC=ON \
-         -DPY_VERSION=${py_v} \
-         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-         -DCUDA_ARCH_NAME=Volta
-         #-DWITH_BOX_PS=ON
-         #-DWITH_GLOO=True 
+#cmake ../../  -DTHIRD_PARTY_PATH=/paddle/build/third_party/${third_party_dir}/ \
+#         -DWITH_MKLML=ON \
+#         -DWITH_MKLDNN=ON \
+#         -DWITH_GPU=${WITH_GPU:-ON} \
+#         -DWITH_C_API=OFF \
+#         -DWITH_DISTRIBUTE=ON \
+#         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-RelWithDebInfo} \
+#         -DWITH_TESTING=${WITH_TESTING:-ON} \
+#         -DWITH_STYLE_CHECK=OFF \
+#         -DWITH_CONTRIB=OFF \
+#         -DWITH_GRPC=${WITH_GRPC:-ON} \
+#         -DWITH_BRPC_RDMA=${WITH_BRPC_RDMA:-OFF} \
+#         -DWITH_FLUID_ONLY=ON \
+#         -DWITH_INFERENCE_API_TEST=OFF \
+#         -DCMAKE_INSTALL_PREFIX=/root/paddlebuild/${third_party_dir}/install \
+#         -DWITH_DOC=ON \
+#         -DPY_VERSION=${py_v} \
+#         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+#         -DCUDA_ARCH_NAME=Volta
+#         #-DWITH_BOX_PS=ON
+#         #-DWITH_GLOO=True 
+
+cmake  ../../  -DTHIRD_PARTY_PATH=/paddle/build/third_party/${third_party_dir}/ \
+    -DCMAKE_BUILD_TYPE=Release -DWITH_DSO=ON -DWITH_GPU=ON -DWITH_AMD_GPU=OFF \
+    -DWITH_DISTRIBUTE=ON -DWITH_MKL=ON -DWITH_AVX=ON -DNOAVX_CORE_FILE= -DCUDA_ARCH_NAME=Auto \
+    -DWITH_PYTHON=ON -DCUDNN_ROOT=/usr/ -DWITH_TESTING=ON -DWITH_COVERAGE=OFF \
+    -DCMAKE_MODULE_PATH=/opt/rocm/hip/cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DWITH_CONTRIB=ON \
+    -DWITH_INFERENCE_API_TEST=ON -DINFERENCE_DEMO_INSTALL_DIR=/paddle/build/third_party/${third_party_dir}/inference_demo \
+    -DPY_VERSION=${py_v} -DCMAKE_INSTALL_PREFIX=/paddle/build/${build_dir} -DWITH_GRPC=ON -DWITH_LITE=OFF
+
 set +x
 
 #if [[ $os == "cent" ]]; then
