@@ -50,11 +50,11 @@ RUN rm -f /usr/bin/pip3 /usr/local/bin/pip3 && ln -s /usr/local/bin/pip3.7 /usr/
 
 ENV GOROOT=/usr/local/go GOPATH=/root/go
 ENV PATH=/usr/bin/:/usr/local/bin:$PATH:${GOROOT}/bin
-#RUN cd /root && \
-#    git clone https://github.com/Valloric/YouCompleteMe.git .vim/bundle/YouCompleteMe && \
-#    cd .vim/bundle/YouCompleteMe && \
-#    git submodule update --init --recursive && \
-#    ./install.py --gocode-completer --clang-completer
+RUN cd /root && \
+    git clone https://github.com/Valloric/YouCompleteMe.git .vim/bundle/YouCompleteMe && \
+    cd .vim/bundle/YouCompleteMe && \
+    git submodule update --init --recursive && \
+    ./install.py --gocode-completer --clang-completer
     
 #RUN vim +PluginInstall +qall
 #RUN vim +GoInstallBinaries +qall
