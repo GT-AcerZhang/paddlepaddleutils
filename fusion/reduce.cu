@@ -33,4 +33,36 @@ __global__ void fusion32(float* mul_1, const float* X, const float* Y) {
    } /* block loop */
  }
 
+__global__ 	void reduce_to_1(int *g_idata, int *g_odata) {  
+    extern 	shared 	int sdata[];
+
+    // each thread loads one element from global to shared mem
+    unsigned int tid = threadIdx.x;
+    unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;  
+
+    // elementwise function here
+    sdata[tid] = g_idata[i];
+
+    syncthreads();
+
+    for (unsigned int s=blockDim.x/2; s>0; s>>=1) {
+        if (tid < s) {
+            sdata[tid] += sdata[tid + s];
+        }
+        syncthreads();
+    }
+
+    // write result for this block to global mem  
+    if (tid == 0) 
+        // some function here
+        g_odata[blockIdx.x] = sdata[0];
+}
+
+__global__ void reduce_last_dim(int *g_idata, g_odata){
+    return 0;
+}
+
+int main(){
+    return 0;
+}
 
