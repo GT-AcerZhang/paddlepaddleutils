@@ -1,6 +1,9 @@
 #include "fusion_api.h"
 
-__global__ void fusion32(float* mul_1, const float* X, const float* Y) {
+__global__ void fuse_elementwise_reduce_dot_elementwise(float* mul_1, const float* X, const float* Y) {
+}
+
+__global__ void fuse_elementwise_reduce_broacast_elementwise(float* mul_1, const float* X, const float* Y) {
  
    int warp_id = threadIdx.x / 32;
    int lane_id = threadIdx.x % 32;
@@ -14,6 +17,7 @@ __global__ void fusion32(float* mul_1, const float* X, const float* Y) {
  
        #pragma unroll
        for (int tid = lane_id; tid < 64; tid += 32) {
+         // pre elementwise function here
          reduce_res += X[bid*16*64 + wid*64 + tid];
        } /* thread loop */
  
@@ -27,20 +31,21 @@ __global__ void fusion32(float* mul_1, const float* X, const float* Y) {
        #pragma unroll
        for (int tid = lane_id; tid < 64; tid += 32) {
          int index = bid*16*64 + wid*64 + tid;
-         mul_1[index] = reduce_res + Y[index];
+         // post elementwise function here
+         mul_1[index] = reduce_res * Y[index];
        } /* thread loop */
      } /* warp loop*/
    } /* block loop */
  }
 
-__global__ 	void reduce_to_1(int *g_idata, int *g_odata) {  
+__global__ 	void fuse_elementwise_reduce_stop(int *g_idata, int *g_odata) {  
     extern 	shared 	int sdata[];
 
     // each thread loads one element from global to shared mem
     unsigned int tid = threadIdx.x;
     unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;  
 
-    // elementwise function here
+    // pre elementwise function here
     sdata[tid] = g_idata[i];
 
     syncthreads();
@@ -54,7 +59,7 @@ __global__ 	void reduce_to_1(int *g_idata, int *g_odata) {
 
     // write result for this block to global mem  
     if (tid == 0) 
-        // some function here
+        // post some function here
         g_odata[blockIdx.x] = sdata[0];
 }
 
