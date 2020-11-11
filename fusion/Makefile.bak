@@ -1,0 +1,89 @@
+CC      = g++
+CFLAGS  = -std=c++11 -fPIC -O3 -DNDEBUG -fvisibility=hidden
+
+CUDA_HOME ?= /usr/local/cuda
+NVCC = $(CUDA_HOME)/bin/nvcc
+
+#INCLUDEFLAGS = -isystem $(CUDA_HOME)/include
+#LDFLAGS = -rdynamic $(CUDA_HOME)/lib64/libcudart.so -lpthread -Wl,-rpath,$(CUDA_HOME)/lib64 -ldl
+
+INCLUDEFLAGS += -isystem $(CUDA_HOME)/include
+LDFLAGS += -rdynamic $(CUDA_HOME)/lib64/libcudart.so $(CUDA_HOME)/lib64/libcurand.so $(CUDA_HOME)/lib64/libnvrtc.so -lpthread -Wl,-rpath,$(CUDA_HOME)/lib64 -ldl
+
+
+ifneq ($(NCCL_INCLUDE), )
+INCLUDEFLAGS += -I$(NCCL_INCLUDE)
+endif
+
+CUDA_VERSION = $(strip $(shell $(NVCC) --version | grep release | sed 's/.*release //' | sed 's/\,.*//'))
+#CUDA_MAJOR = $(shell echo $(CUDA_VERSION) | cut -d "." -f 1)
+CUDA_MAJOR = "10"
+CUDA_MINOR = $(shell echo $(CUDA_VERSION) | cut -d "." -f 2)
+
+CUDA11_EXCLUDE_GENCODE = -gencode=arch=compute_30,code=sm_30
+CUDA8_GENCODE = -gencode=arch=compute_35,code=sm_35 \
+                -gencode=arch=compute_50,code=sm_50 \
+                -gencode=arch=compute_52,code=sm_52 \
+                -gencode=arch=compute_60,code=sm_60 \
+                -gencode=arch=compute_61,code=sm_61
+CUDA9_GENCODE = -gencode=arch=compute_70,code=sm_70
+
+CUDA8_PTX     = -gencode=arch=compute_61,code=compute_61
+CUDA9_PTX     = -gencode=arch=compute_70,code=compute_70
+CUDA10_PTX     = -gencode=arch=compute_75,code=compute_75
+CUDA11_PTX     = -gencode=arch=compute_80,code=compute_80
+
+# Include Volta support if we're using CUDA9 or above
+ifeq ($(shell test "$(CUDA_MAJOR)" -ge 11; echo $$?),0)
+  NVCC_GENCODE ?= $(CUDA8_GENCODE) $(CUDA9_GENCODE) $(CUDA9_PTX) $(CUDA10_PTX) $(CUDA11_PTX)
+else ifeq ($(shell test "$(CUDA_MAJOR)" -ge 10; echo $$?)_$(shell test "$(CUDA_MAJOR)" -lt 11; echo $$?),0_0)
+  NVCC_GENCODE ?= $(CUDA8_GENCODE) $(CUDA11_EXCLUDE_GENCODE) $(CUDA8_PTX) $(CUDA9_PTX) $(CUDA10_PTX)
+else ifeq ($(shell test "$(CUDA_MAJOR)" -ge 9; echo $$?)_$(shell test "$(CUDA_MAJOR)" -lt 10; echo $$?),0_0)
+  NVCC_GENCODE ?= $(CUDA8_GENCODE) $(CUDA11_EXCLUDE_GENCODE) $(CUDA8_PTX) $(CUDA9_PTX)
+else ifeq ($(shell test "$(CUDA_MAJOR)" -lt 9; echo $$?),0)
+  NVCC_GENCODE ?= $(CUDA8_GENCODE) $(CUDA11_EXCLUDE_GENCODE) $(CUDA9_GENCODE) 
+endif
+
+NVCUFLAGS := -ccbin $(CC) $(NVCC_GENCODE) $(INCLUDEFLAGS) -std=c++11 --compiler-options '-fPIC -fvisibility=hidden'
+
+ifeq ($(DEBUG), 1)
+NVCUFLAGS += -DDEBUG_PRINT
+CC  += -DDEBUG_PRINT
+endif
+
+BUILD_PREFIX ?= ../build
+BIN_DIR := $(BUILD_PREFIX)/bin
+OBJ_DIR := $(BUILD_PREFIX)/obj
+INC_DIR := $(BUILD_PREFIX)/include
+LIB_DIR := $(BUILD_PREFIX)/lib
+
+DIRS = $(shell find . -maxdepth 3 -type d)
+SRCS := $(foreach dir, $(DIRS), $(wildcard $(dir)/*.cc))
+OBJS := $(SRCS:%.cc=$(OBJ_DIR)/%.cc.o)
+
+CU_SRCS := $(foreach dir, $(DIRS), $(wildcard $(dir)/*.cu))
+CU_OBJS := $(CU_SRCS:%.cu=$(OBJ_DIR)/%.cu.o)
+
+TARGETS := $(SRCS:%.cc=$(BIN_DIR)/%)
+
+all : test
+test : $(TARGETS)
+
+$(BIN_DIR)/% : $(OBJ_DIR)/%.cc.o $(CU_OBJS)
+	@printf "Linking: $@ <-- $^"
+	mkdir -p $(BIN_DIR)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+$(OBJ_DIR)/%.cc.o : %.cc
+	@printf "debug: $@ <-- $<\n"
+	mkdir -p $(OBJ_DIR)
+	$(CC) $(CFLAGS) $(INCLUDEFLAGS) -o $@ -c $<
+
+$(OBJ_DIR)/%.cu.o : %.cu
+	@printf "debug: $@ <-- $<\n"
+	mkdir -p $(OBJ_DIR)
+	$(NVCC) $(NVCUFLAGS) -dc $< -o $@
+
+.PHONY : clean
+clean:
+	rm -rf $(BUILD_PREFIX)
