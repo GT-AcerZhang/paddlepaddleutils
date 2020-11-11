@@ -32,3 +32,5 @@ __global__ void fusion32(float* mul_1, const float* X, const float* Y) {
      } /* warp loop*/
    } /* block loop */
  }
+
+
