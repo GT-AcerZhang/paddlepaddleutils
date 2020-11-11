@@ -58,7 +58,7 @@ __global__ 	void reduce_to_1(int *g_idata, int *g_odata) {
         g_odata[blockIdx.x] = sdata[0];
 }
 
-__global__ void reduce_last_dim(int *g_idata, g_odata){
+__global__ void reduce_one_dim(int *g_idata, g_odata){
     return 0;
 }
 
