@@ -1,3 +1,5 @@
+#include "fusion_api.h"
+
 __global__ void fusion32(float* mul_1, const float* X, const float* Y) {
  
    int warp_id = threadIdx.x / 32;
@@ -30,7 +32,3 @@ __global__ void fusion32(float* mul_1, const float* X, const float* Y) {
      } /* warp loop*/
    } /* block loop */
  }
-
-int main(){
-    return 0;
-}
