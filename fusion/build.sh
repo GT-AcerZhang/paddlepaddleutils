@@ -2,7 +2,8 @@ rm -f *.o
 
 NVCC=/usr/local/cuda/bin/nvcc
 gen_code="-gencode arch=compute_75,code=sm_75"
-for file in *.cu ; do
+files=("test_p2p.cu")
+for file in ${files[@]}; do
     file_name=$(basename "${file}")
     name="${file_name%.*}"
     echo $file_name $name
