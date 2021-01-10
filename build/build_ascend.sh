@@ -3,10 +3,10 @@
 unset GREP_OPTIONS
 branch=`git branch | grep \* | cut -d ' ' -f2`
 
-place=gpu
-rpc=grpc
+place=ascend
+rpc=none
 testing=None
-os=ubuntu
+os=eluer
 py_v=3.7.5
 PADDLE_ROOT=/home/gongwb/go/src/github.com/Paddle/
 
@@ -88,6 +88,7 @@ case "$rpc" in
     brpc) WITH_GRPC=OFF ;;
     grpc) WITH_GRPC=ON ;;
     rdma) WITH_GRPC=OFF ; WITH_BRPC_RDMA=ON ;;
+    none) WITH_GRPC=OFF ; WITH_BRPC_RDMA=OFF ;;
     *) echo "not support ${rpc}" ; exit 1 ;;
 esac
 
@@ -150,27 +151,27 @@ set -x
 
 cmake  ../../  -DTHIRD_PARTY_PATH=${PADDLE_ROOT}/build/third_party/${third_party_dir}/ \
     -DCMAKE_BUILD_TYPE=Release \
-    -DWITH_DSO=ON \
     -DWITH_GPU=OFF \
     -DWITH_AMD_GPU=OFF \
     -DWITH_DISTRIBUTE=ON \
     -DWITH_MKL=ON \
-    -DWITH_AVX=ON \
-    -DNOAVX_CORE_FILE= \
-    -DCUDA_ARCH_NAME=Auto \
+    -DCUDA_ARCH_NAME=Volta \
     -DWITH_PYTHON=ON \
-    -DCUDNN_ROOT=/usr/ \
     -DWITH_TESTING=ON \
     -DWITH_COVERAGE=OFF \
-    -DCMAKE_MODULE_PATH=/opt/rocm/hip/cmake \
-    -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DWITH_CONTRIB=ON \
-    -DWITH_INFERENCE_API_TEST=OFF -DINFERENCE_DEMO_INSTALL_DIR=${PADDLE_ROOT}/build/third_party/${third_party_dir}/inference_demo \
-    -DPY_VERSION=${py_v} -DCMAKE_INSTALL_PREFIX=${PADDLE_ROOT}/build/${build_dir} -DWITH_GRPC=OFF -DWITH_LITE=OFF
+    -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+    -DWITH_CONTRIB=ON \
+    -DWITH_INFERENCE_API_TEST=OFF \
+    -DINFERENCE_DEMO_INSTALL_DIR=${PADDLE_ROOT}/build/third_party/${third_party_dir}/inference_demo \
+    -DPY_VERSION=${py_v} \
+    -DCMAKE_INSTALL_PREFIX=${PADDLE_ROOT}/build/${build_dir} \
+    -DWITH_GRPC=OFF \
+    -DWITH_LITE=OFF
 
 set +x
 
 #if [[ $os == "cent" ]]; then
     #cd $build_dir
-    make -j 25
+    make -j 30
 #fi
 
