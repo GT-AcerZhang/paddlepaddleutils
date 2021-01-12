@@ -69,6 +69,7 @@ echo "last"
 case "$place" in
     gpu) WITH_GPU=ON ;;
     cpu) WITH_GPU=OFF ;;
+    ascend) WITH_GPU=OFF ;;
     *) echo "not support ${place}" ; exit 1 ;;
 esac
 
@@ -150,28 +151,14 @@ set -x
 #         #-DWITH_GLOO=True 
 
 cmake  ../../  -DTHIRD_PARTY_PATH=${PADDLE_ROOT}/build/third_party/${third_party_dir}/ \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DWITH_GPU=OFF \
-    -DWITH_AMD_GPU=OFF \
-    -DWITH_DISTRIBUTE=ON \
-    -DWITH_MKL=ON \
-    -DCUDA_ARCH_NAME=Volta \
-    -DWITH_PYTHON=ON \
-    -DWITH_TESTING=ON \
-    -DWITH_COVERAGE=OFF \
-    -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-    -DWITH_CONTRIB=ON \
-    -DWITH_INFERENCE_API_TEST=OFF \
-    -DINFERENCE_DEMO_INSTALL_DIR=${PADDLE_ROOT}/build/third_party/${third_party_dir}/inference_demo \
-    -DPY_VERSION=${py_v} \
-    -DCMAKE_INSTALL_PREFIX=${PADDLE_ROOT}/build/${build_dir} \
-    -DWITH_GRPC=OFF \
-    -DWITH_LITE=OFF
+    -DPY_VERSION=3 -DPYTHON_EXECUTABLE=`which python3` \
+    -DWITH_ARM=ON -DWITH_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DON_INFER=ON -DWITH_XBYAK=OFF
+    #-DWITH_ARM=ON -DWITH_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DON_INFER=ON -DWITH_XBYAK=OFF -DWITH_ASCEND=ON
 
 set +x
 
 #if [[ $os == "cent" ]]; then
     #cd $build_dir
-    make -j 30
+    make TARGET=ARMV8 -j 30
 #fi
 
