@@ -1,0 +1,7 @@
+{ // block 0
+    persist trainable param fc_0.w_0 : fluid.VarType.LOD_TENSOR.shape(3, 2).astype(VarType.FP32)
+    persist var learning_rate_0 : fluid.VarType.LOD_TENSOR.shape(1,).astype(VarType.FP32)
+
+    {FetchList=['learning_rate_0']} = ascend_trigger(inputs={FeedList=[]}, graph_idx = 0, op_device = , op_namescope = /, op_role = 0, op_role_var = [])
+}
+
