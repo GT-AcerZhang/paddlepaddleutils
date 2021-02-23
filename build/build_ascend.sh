@@ -11,6 +11,7 @@ py_v=3.7.5
 PADDLE_ROOT=/home/gongwb/go/src/github.com/Paddle/
 
 
+
 if grep --quiet "Ubuntu" /etc/issue; then
   os=ubuntu
   build_type=debug
@@ -152,13 +153,15 @@ set -x
 
 cmake  ../../  -DTHIRD_PARTY_PATH=${PADDLE_ROOT}/build/third_party/${third_party_dir}/ \
     -DPY_VERSION=3 -DPYTHON_EXECUTABLE=`which python3` \
-    -DWITH_ARM=ON -DWITH_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DON_INFER=ON -DWITH_XBYAK=OFF \
-    -DWITH_ASCEND=ON -DWITH_ASCEND_CXX11=ON -DWITH_PSCORE=OFF -DWITH_DISTRIBUTE=ON
+    -DWITH_ARM=ON -DWITH_TESTING=ON -DCMAKE_BUILD_TYPE=Release -DON_INFER=ON -DWITH_XBYAK=OFF \
+    -DWITH_ASCEND=ON -DWITH_ASCEND_CL=OFF -DWITH_ASCEND_CXX11=ON -DWITH_PSCORE=OFF -DWITH_DISTRIBUTE=ON
+    #-DWITH_ASCEND=OFF -DWITH_ASCEND_CL=ON -DWITH_ASCEND_CXX11=ON -DWITH_PSCORE=OFF -DWITH_DISTRIBUTE=ON
 
 set +x
 
 #if [[ $os == "cent" ]]; then
     #cd $build_dir
     make TARGET=ARMV8 -j 30
+    #make TARGET=ARMV8
 #fi
 

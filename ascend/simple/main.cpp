@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
         {"ge.exec.rankTableFile", rankTableFile},
         {"ge.exec.rankId", rank},
 	{"ge.exec.isUseHcom", "1"},
-	{"ge.exec.deployMode", "0"}
+	{"ge.exec.deployMode", "0"},
     	{"ge.exec.profilingMode","1"},
     	{"ge.exec.profilingOptions", prof_opts}
     };

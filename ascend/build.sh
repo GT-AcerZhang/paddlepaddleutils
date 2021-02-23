@@ -6,4 +6,5 @@ local_ascend=/usr/local/Ascend/ascend-toolkit/latest
 
 g++ --version
 
-g++ -I/$local_ascend/fwkacllib/include -L/$local_ascend/fwkacllib/lib64 -D_GLIBCXX_USE_CXX11_ABI=1 -lgraph -lge_runner -o test_init test_init.cc
+g++ -I/$local_ascend/fwkacllib/include -L/$local_ascend/fwkacllib/lib64 -D_GLIBCXX_USE_CXX11_ABI=1 -lgraph -lge_runner -o test_init -g test_init.cc
+g++ -I/$local_ascend/fwkacllib/include -L/$local_ascend/fwkacllib/lib64 -I/$local_ascend/arm64-linux/opp/op_proto/built-in/inc/ -D_GLIBCXX_USE_CXX11_ABI=1 -lgraph -lge_runner -o simple_graph -g simple_graph.cc

@@ -11,7 +11,8 @@
 std::shared_ptr<ge::Session> session_;
 
 std::map<ge::AscendString, ge::AscendString> _GetDefaultInitOptions() {
-    ge::AscendString prof_opts=R"({"output":"/tmp/profiling","training_trace":"on","fp_point":"resnet_model/conv2d/Conv2Dresnet_model/batch_normalization/FusedBatchNormV3_Reduce","bp_point":"gradients/AddN_70"})";
+    //ge::AscendString prof_opts=R"({"output":"/home/gongwb/go/prof.log","training_trace":"on","fp_point":"resnet_model/conv2d/Conv2Dresnet_model/batch_normalization/FusedBatchNormV3_Reduce","bp_point":"gradients/AddN_70"})";
+    ge::AscendString prof_opts=R"({"output":"/home/gongwb/go/prof.log"})";
 
 	std::map<ge::AscendString, ge::AscendString> ge_options ;
     ge_options["ge.exec.deviceId"] = "0";
